@@ -19,8 +19,12 @@ from dsl_compiler import execute_query_plan, QueryPlanPlanner, QueryAgent
 | [`validate_query_plan`](#validate_query_plan) | function | Validate a plan offline. Returns list of error strings. |
 | [`validate_query_plan_dict`](#validate_query_plan_dict) | function | Structured validation. Returns typed error objects. |
 | [`load_and_validate_schema`](#load_and_validate_schema) | function | Parse and validate `schema.yaml`. |
-| [`QueryPlanPlanner`](#queryplanplanner) | class | LLM → QueryPlan orchestration with retry loop. |
-| [`QueryAgent`](#queryagent) | class | Natural language → executed result in one call. |
+| [`QueryPlanPlanner`](#queryplanplanner) | class | LLM → QueryPlan orchestration with retry loop (legacy pipeline). |
+| [`QueryAgent`](#queryagent) | class | Natural language → executed result in one call (intent pipeline). |
+| [`IntentPlanner`](#intentplanner) | class | Two-stage intent extraction → plan builder pipeline. |
+| [`IntentMemory`](#intentmemory) | class | ChromaDB-backed few-shot memory for consistency. |
+| [`build_value_index`](#build_value_index) | function | Query DB for distinct values of categorical columns. |
+| [`normalize_intent`](#normalize_intent) | function | Deterministic intent canonicalization. |
 | [`QueryPlan`](#queryplan) | Pydantic model | Type-safe QueryPlan construction. |
 | [`queryplan_json_schema`](#queryplan_json_schema) | function | JSON Schema for structured LLM output. |
 | [`semantic_lint`](#semantic_lint) | function | Run semantic checks without execution. |
@@ -217,7 +221,7 @@ plan["meta"] == {
 
 ## `QueryAgent`
 
-High-level wrapper: natural language question → executed result in one call.
+High-level wrapper: natural language question → executed result in one call. Uses the two-stage intent pipeline by default.
 
 ```python
 class QueryAgent:
@@ -230,10 +234,27 @@ class QueryAgent:
         llm: Any,
         max_plan_retries: int = 2,
         enforce_semantic_lint: bool = True,
+        use_intent_pipeline: bool = True,
     )
 ```
 
-`max_plan_retries` is the number of **extra** LLM attempts after the first plan when structural or semantic checks fail. `enforce_semantic_lint` (default True) prevents execution when `semantic_lint` still reports errors after retries; set False only for debugging.
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `engine` | `sqlalchemy.Engine` | required | SQLAlchemy engine connected to Postgres |
+| `schema_path` | `str` | required | Path to `schema.yaml` |
+| `spec_path` | `str` | required | Path to `queryplan_spec_generated.yaml` |
+| `llm` | `Any` | required | Any LLM — OpenAI client, LangChain model, callable |
+| `max_plan_retries` | `int` | `2` | Extra LLM attempts for the legacy pipeline fallback |
+| `enforce_semantic_lint` | `bool` | `True` | Block execution on lint errors (legacy pipeline only) |
+| `use_intent_pipeline` | `bool` | `True` | Use two-stage intent pipeline; set `False` for legacy |
+
+**On initialization**, `QueryAgent` automatically:
+
+1. **Builds a value index** — queries the database for distinct values of categorical columns
+2. **Initializes IntentMemory** — connects to ChromaDB at `<schema_dir>/.intent_memory/`
+3. **Creates an IntentPlanner** — configured with the value index and memory
 
 ### `ask(question)`
 
@@ -263,6 +284,177 @@ When semantic lint still fails (and `enforce_semantic_lint` is True):
         "plan":        {...},
     }
 }
+```
+
+---
+
+## `IntentPlanner`
+
+Two-stage planner: LLM intent extraction → deterministic plan builder. This is the core of QCE's consistency pipeline.
+
+```python
+from dsl_compiler.intent_planner import IntentPlanner
+
+class IntentPlanner:
+    def __init__(
+        self,
+        *,
+        llm: Any,
+        schema_path: str,
+        temperature: float = 0.0,
+        model: str | None = None,
+        value_index: dict | None = None,
+        max_intent_retries: int = 2,
+        memory: IntentMemory | None = None,
+    )
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `llm` | `Any` | required | LLM client or callable |
+| `schema_path` | `str` | required | Path to `schema.yaml` |
+| `value_index` | `dict` | `None` | Pre-built value index from `build_value_index()` |
+| `max_intent_retries` | `int` | `2` | Retries when value validation fails |
+| `memory` | `IntentMemory` | `None` | Few-shot memory instance |
+
+### `plan(question)` — Full Pipeline
+
+Runs the complete intent pipeline:
+
+1. Retrieve few-shot examples from memory
+2. LLM extracts intent (with value index + examples in prompt)
+3. Normalize intent deterministically
+4. Validate against value index, retry with feedback if needed
+5. Build QueryPlan from validated intent
+6. Store successful (question, intent) pair in memory
+
+```python
+plan = intent_planner.plan("how many plumbing issues in bechtel last year?")
+```
+
+The returned plan includes a `meta` dict:
+
+```python
+plan["meta"] == {
+    "pipeline":           "intent",
+    "intent":             {...},    # the normalized intent
+    "retry_count":        0,
+    "auto_fixes_applied": [],
+    "validation_errors":  [],
+    "lint_errors":        [],
+}
+```
+
+---
+
+## `IntentMemory`
+
+ChromaDB-backed storage of (question, intent) pairs for few-shot prompting.
+
+```python
+from dsl_compiler.intent_memory import IntentMemory
+
+class IntentMemory:
+    def __init__(
+        self,
+        persist_directory: str | None = None,
+        collection_name: str = "intent_memory",
+        max_examples: int = 500,
+    )
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `persist_directory` | `str` | `~/.dsl_compiler/intent_memory` | ChromaDB storage directory |
+| `collection_name` | `str` | `"intent_memory"` | ChromaDB collection name |
+| `max_examples` | `int` | `500` | Maximum stored examples (oldest evicted) |
+
+Falls back gracefully if `chromadb` is not installed — memory is simply disabled.
+
+### `store(question, intent)`
+
+Store a successful (question, intent) pair. Deduplicates by question hash.
+
+```python
+memory.store("how many plumbing issues?", {"dataset": "work_orders", ...})
+```
+
+### `retrieve(question, top_k=3, min_similarity=0.60)`
+
+Find similar past questions. Returns list of `{"question", "intent", "similarity"}`.
+
+```python
+examples = memory.retrieve("how many electrical problems?")
+# [{"question": "how many plumbing issues?", "intent": {...}, "similarity": 0.89}]
+```
+
+### `format_few_shot_examples(examples)`
+
+Format retrieved examples as a prompt section for the LLM.
+
+```python
+prompt_section = memory.format_few_shot_examples(examples)
+```
+
+---
+
+## `build_value_index`
+
+Query the database for distinct values of categorical columns.
+
+```python
+from dsl_compiler.value_index import build_value_index
+
+def build_value_index(
+    engine: Engine,
+    schema_path: str,
+    max_distinct: int = 500,
+) -> Dict[str, Dict[str, List[str]]]
+```
+
+**Returns:** Nested dict of `{table: {column: [values]}}`.
+
+```python
+index = build_value_index(engine, "config/schema.yaml")
+# {"orders": {"ship_country": ["Germany", "France", ...], ...}}
+```
+
+Built once at `QueryAgent` startup, shared across all sessions. Related functions:
+
+| Function | Description |
+|---|---|
+| `format_value_index_for_prompt(index)` | Format as compact string for LLM prompt injection |
+| `fuzzy_resolve(value, known_values)` | Find closest match using substring + difflib |
+| `resolve_intent_values(intent, index)` | Fuzzy-correct all filter values in an intent |
+| `validate_intent_against_index(intent, index)` | Check filter values exist; returns list of issues |
+
+---
+
+## `normalize_intent`
+
+Deterministic canonicalization of LLM-extracted intents.
+
+```python
+from dsl_compiler.intent_normalize import normalize_intent
+
+def normalize_intent(
+    intent: Dict[str, Any],
+    schema: Dict[str, Any],
+) -> Dict[str, Any]
+```
+
+Applies these rules:
+
+1. **Absorb keyword filters** — if the LLM put the keyword as both `keyword` and a filter on a `keyword_search_or` column, remove the redundant filter
+2. **Ensure group_by is a list** — normalize from string/null to list
+3. **Auto group_by for multi-value filters** — if a filter has multiple values with count/sum/avg aggregation, add the column to group_by
+
+```python
+intent = normalize_intent(raw_intent, schema)
 ```
 
 ---

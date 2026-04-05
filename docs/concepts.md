@@ -24,66 +24,178 @@ Understanding how QCE works end-to-end will help you configure it correctly and 
 </div>
 
 !!! abstract "TL;DR"
-    QCE separates **intent** (what data you want) from **execution** (how to fetch it). The LLM produces a structured `QueryPlan`; the compiler turns that into parameterized SQL. The two never mix.
+    QCE separates **intent** (what data you want) from **execution** (how to fetch it). The LLM extracts a lightweight `QueryIntent`; deterministic code normalizes it, validates it against real database values, and builds a `QueryPlan`; the compiler turns that plan into parameterized SQL. The layers never mix.
 
 ---
 
-## The Compilation Pipeline
+## The Two-Stage Pipeline
 
-Every QCE query goes through the same deterministic stages:
+QCE uses a **two-stage architecture** that minimizes LLM responsibility and maximizes determinism:
 
 ```
 Natural language question
         │
-        ▼  ── optional: skip if you write plans by hand ──
+        ▼
  ┌─────────────────────────────────────────────────────┐
- │  LLM Planner                                         │
- │  QueryPlanPlanner.plan_with_retry()                  │
- │                                                      │
- │  • sends: question + schema + spec YAML              │
- │  • receives: QueryPlan JSON dict                     │
- │  • applies: auto-fixes (relative dates, limits...)   │
- │  • validates & retries with structured error feedback │
+ │  1. Few-Shot Memory Lookup                          │
+ │     IntentMemory.retrieve()                         │
+ │                                                     │
+ │  • Embeds the question (OpenAI text-embedding)      │
+ │  • Finds similar past questions in ChromaDB         │
+ │  • Returns verified (question, intent) examples     │
  └─────────────────────────────────────────────────────┘
-        │
-        ▼  QueryPlan dict  ── pure JSON, zero SQL ──
+        │  few-shot examples
+        ▼
  ┌─────────────────────────────────────────────────────┐
- │  Validation   validate_query_plan_dict()             │
- │                                                      │
- │  1. Pydantic — structural check (extra="forbid")     │
- │  2. Allowlist — every table/column in schema.yaml    │
- │  3. Semantic — rollup integrity, alias uniqueness    │
+ │  2. LLM Intent Extraction                           │
+ │     extract_intent()                                │
+ │                                                     │
+ │  • LLM receives: schema + value index pick-lists    │
+ │    + few-shot examples + question                   │
+ │  • LLM produces: QueryIntent JSON                   │
+ │    (dataset, keyword, filters, time_range,           │
+ │     aggregation, group_by, sort, limit)              │
+ └─────────────────────────────────────────────────────┘
+        │  raw intent
+        ▼
+ ┌─────────────────────────────────────────────────────┐
+ │  3. Deterministic Normalization                     │
+ │     normalize_intent()                              │
+ │                                                     │
+ │  • Absorbs redundant keyword/filter overlap         │
+ │  • Ensures group_by is always a list                │
+ │  • Auto-adds group_by for multi-value filters       │
+ └─────────────────────────────────────────────────────┘
+        │  normalized intent
+        ▼
+ ┌─────────────────────────────────────────────────────┐
+ │  4. Value Index Validation + Retry                  │
+ │     validate_intent_against_index()                 │
+ │                                                     │
+ │  • Checks filter values exist in the database       │
+ │  • If issues found → feeds feedback to LLM → retry  │
+ │  • Fuzzy-resolves close matches automatically       │
+ └─────────────────────────────────────────────────────┘
+        │  validated intent
+        ▼
+ ┌─────────────────────────────────────────────────────┐
+ │  5. Deterministic Plan Builder                      │
+ │     build_plan_from_intent()                        │
+ │                                                     │
+ │  • Intent + schema metadata → QueryPlan JSON        │
+ │  • Keyword → OR across keyword_search_or columns   │
+ │  • Time range → $relative_date sentinels            │
+ │  • count → count_distinct(primary_id)               │
+ │  • Auto-excludes null/empty on group-by columns     │
+ └─────────────────────────────────────────────────────┘
+        │  QueryPlan dict
+        ▼
+ ┌─────────────────────────────────────────────────────┐
+ │  6. Compiler + Executor                             │
+ │     Compiler.compile() → Executor.execute()         │
+ │                                                     │
+ │  • Validates against schema.yaml allowlist           │
+ │  • All values → bind parameters                     │
+ │  • Auto-injects JOIN paths via BFS                  │
+ │  • Executes with statement timeout                  │
  └─────────────────────────────────────────────────────┘
         │
         ▼
  ┌─────────────────────────────────────────────────────┐
- │  Auto Join Inject   auto_inject_joins()              │
- │                                                      │
- │  BFS over schema links → inject shortest join path  │
- └─────────────────────────────────────────────────────┘
-        │
-        ▼
- ┌─────────────────────────────────────────────────────┐
- │  Compiler   Compiler.compile()                       │
- │                                                      │
- │  • logical names → physical names (schema.yaml)      │
- │  • all values → %(p0)s bind parameters               │
- │  • builds SQLAlchemy expression tree                 │
- │  • renders: parameterized SQL string                 │
- └─────────────────────────────────────────────────────┘
-        │
-        ▼  (sql_string, params_dict)
- ┌─────────────────────────────────────────────────────┐
- │  Executor   Executor.execute()                       │
- │                                                      │
- │  • SET LOCAL statement_timeout first                 │
- │  • executes with bind params                         │
- │  • serializes: datetime → ISO, Decimal → float      │
+ │  7. Memory Storage                                  │
+ │     IntentMemory.store()                            │
+ │                                                     │
+ │  • Stores (question, normalized_intent) in ChromaDB │
+ │  • Future similar questions get this as few-shot    │
  └─────────────────────────────────────────────────────┘
         │
         ▼
    {"rows": [...], "row_count": N, "columns": [...], "sql": "..."}
 ```
+
+The key insight: **the LLM only decides _what_ the user wants (intent), never _how_ to query it (SQL)**. Every structural decision — keyword OR clauses, date range filters, count vs. count_distinct, join paths — is made by deterministic code using schema metadata.
+
+---
+
+## Why Two Stages?
+
+The original QCE architecture asked the LLM to produce a full `QueryPlan` directly. This worked for simple queries but had a fundamental consistency problem: the same question phrased differently could produce structurally different plans, leading to different SQL and different results.
+
+The two-stage architecture solves this by:
+
+1. **Reducing the LLM's task** — extracting a flat intent (7-8 fields) is far simpler and more constrained than producing a nested QueryPlan.
+2. **Normalizing after extraction** — deterministic code canonicalizes the intent so equivalent phrasings produce identical structures.
+3. **Learning from success** — the memory stores verified intents and injects them as few-shot examples, teaching the LLM to be consistent without manual training.
+4. **Validating against reality** — the value index catches hallucinated or misspelled values before they reach SQL.
+
+---
+
+## The Value Index
+
+At startup, `QueryAgent` queries the database for distinct values of categorical columns (building names, status codes, asset types, etc.) and caches them in memory.
+
+```python
+value_index = build_value_index(engine, schema_path)
+# {
+#   "work_orders": {
+#     "building_name": ["ATHENAEUM", "BECHTEL RESIDENCE", ...],
+#     "status_code": ["CLOSED", "COMPLETE", "IN PROGRESS", ...],
+#   },
+#   "assets": {
+#     "keyword_of_asset": ["AIR HANDLER", "FIRE EXTINGUISHER", ...],
+#   },
+# }
+```
+
+The value index serves three purposes:
+
+1. **Prompt injection** — real values are formatted as pick-lists and injected into the LLM prompt, so the LLM picks from actual database values instead of guessing.
+2. **Post-extraction validation** — after the LLM extracts an intent, filter values are checked against the index. Unknown values trigger a retry with feedback.
+3. **Fuzzy resolution** — close matches (e.g., "bechtel" → "BECHTEL RESIDENCE") are resolved automatically using substring matching and difflib.
+
+The index is built once at server startup and shared across all user sessions. It only rebuilds on server restart, which naturally picks up data changes.
+
+!!! tip "Which columns get indexed?"
+    QCE indexes `varchar`/`text` columns that are likely categorical — building names, status codes, priority codes, asset keywords. It skips free-text columns (descriptions, comments) and high-cardinality ID columns. See `value_index._get_indexable_columns()` for the heuristic.
+
+---
+
+## Intent Normalization
+
+After the LLM extracts an intent, deterministic normalization rules are applied to resolve structural ambiguities:
+
+| Rule | What it does |
+|---|---|
+| **Absorb keyword filters** | If the LLM put a keyword as both `keyword` and a filter on a `keyword_search_or` column, the redundant filter is removed. The keyword generates a broad OR search that subsumes the narrower filter. |
+| **Ensure group_by is a list** | Normalizes `group_by` from string or null to always be a list. |
+| **Auto group_by for multi-value filters** | If a filter has multiple values (e.g., buildings A, B, C) and the aggregation is count/sum/avg, the filtered column is added to `group_by` so results are broken down per value. |
+
+These rules ensure that no matter how the LLM structures the intent, the normalized output is identical for semantically equivalent questions.
+
+---
+
+## Few-Shot Memory (IntentMemory)
+
+The `IntentMemory` is QCE's learning mechanism. Every time a query succeeds, the (question, normalized_intent) pair is stored in a ChromaDB vector database. When a new question comes in:
+
+1. The question is embedded using `text-embedding-3-small`.
+2. ChromaDB finds the most similar past questions (cosine similarity).
+3. Matching examples (above a similarity threshold) are formatted and injected into the LLM prompt.
+
+This means the LLM sees concrete examples of "for this similar question, here's the intent that worked." Over time, the system becomes more consistent as it accumulates verified examples.
+
+```
+New question: "how many electrical issues in bechtel last year?"
+    │
+    ▼  retrieve similar
+Similar past question: "how many plumbing issues in bechtel last year?" (sim: 0.92)
+    │
+    ▼  inject as few-shot
+LLM sees the working intent and follows the same structure
+```
+
+!!! info "Memory persistence"
+    Memory persists across server restarts via ChromaDB's on-disk storage. It is shared across all users of the same deployment — one user's successful queries improve consistency for everyone.
 
 ---
 
@@ -94,7 +206,7 @@ Natural language question
 !!! danger "Security guarantee"
     If a table or column is not declared in `schema.yaml`, it **cannot** appear in compiled SQL — not from the LLM, not from a hand-written plan, not from user input of any kind. The compiler raises `QueryPlanError` and execution never happens.
 
-The schema defines three things:
+The schema defines:
 
 === "Tables & Columns"
 
@@ -103,6 +215,8 @@ The schema defines three things:
       - name: orders               # logical name — the LLM uses this
         db_table: '"Orders"'       # physical name — the DB sees this
         description: "Customer orders"
+        primary_id: order_id       # used for count_distinct
+        primary_date: order_date   # used for time range filters
         columns:
           - name: order_id
             db_column: '"OrderID"'
@@ -126,38 +240,84 @@ The schema defines three things:
             right: customers.customer_id
     ```
 
-    Links are used by the auto-join injector to find join paths automatically.
-
-=== "Primary Keys"
+=== "Keyword Search"
 
     ```yaml
     tables:
-      - name: orders
-        primary_id: order_id
+      - name: work_orders
+        keyword_search_or:
+          - work_order_description
+          - long_desc
+          - shop_name
     ```
 
-    Primary keys help the semantic linter suggest `count_distinct` over `count` when appropriate.
+    When `keyword_search_or` is set, keyword queries generate an OR clause across all listed columns — e.g., `WHERE desc ILIKE '%plumbing%' OR long_desc ILIKE '%plumbing%'`.
 
 ---
 
-## The QueryPlan: Structured Intent
+## The QueryIntent: Lightweight Structured Intent
 
-A `QueryPlan` expresses *what data to fetch*, not *how to fetch it as SQL*. The LLM produces this structure; the compiler handles all SQL decisions.
+A `QueryIntent` captures _what the user wants_ in a flat, simple structure:
 
 ```json
 {
-  "dataset": "orders",
-  "filters": [{"field": "ship_country", "op": "=", "value": "Germany"}],
-  "metrics": [{"agg": "count", "field": "*", "alias": "total_orders"}]
+  "dataset": "work_orders",
+  "keyword": "plumbing",
+  "filters": [
+    {"column": "building_name", "values": ["BECHTEL RESIDENCE", "PAGE HOUSE"]}
+  ],
+  "time_range": "last_year",
+  "aggregation": "count",
+  "group_by": ["building_name"],
+  "sort_direction": "desc",
+  "limit": null
 }
 ```
 
-Compiles to:
+The LLM only needs to fill in these fields — it never decides on SQL operators, join paths, date formats, or count strategy. Those are all handled by the deterministic plan builder.
+
+---
+
+## The QueryPlan: Structured Execution Plan
+
+The plan builder converts a `QueryIntent` into a `QueryPlan`:
+
+```json
+{
+  "version": "1.0",
+  "dataset": "work_orders",
+  "filters": [
+    {"field": "building_name", "op": "in", "value": ["BECHTEL RESIDENCE", "PAGE HOUSE"]},
+    {"field": "created_date", "op": ">=", "value": "2025-01-01T00:00:00"},
+    {"field": "created_date", "op": "<", "value": "2026-01-01T00:00:00"},
+    {"field": "building_name", "op": "!=", "value": ""},
+    {"field": "building_name", "op": "is_not_null", "value": true}
+  ],
+  "dimensions": [{"field": "building_name", "alias": "building_name"}],
+  "metrics": [{"agg": "count_distinct", "field": "work_order_id", "alias": "total"}],
+  "where": {
+    "or": [
+      {"cmp": {"left": {"col": "work_order_description"}, "op": "contains", "right": "plumbing"}},
+      {"cmp": {"left": {"col": "long_desc"}, "op": "contains", "right": "plumbing"}}
+    ]
+  },
+  "order_by": [{"by": "total", "dir": "desc"}],
+  "limit": 100
+}
+```
+
+The compiler then turns this into parameterized SQL:
 
 ```sql
-SELECT count(*) AS total_orders
-FROM "Orders"
-WHERE "ShipCountry" = %(p0)s
+SELECT "building_name", COUNT(DISTINCT "workOrderId") AS total
+FROM "finalWorkOrders"
+WHERE "building_name" IN (%(p0)s, %(p1)s)
+  AND "createdDate" >= %(p2)s AND "createdDate" < %(p3)s
+  AND "building_name" != %(p4)s AND "building_name" IS NOT NULL
+  AND ("workOrderDescription" ILIKE %(p5)s OR "longDesc" ILIKE %(p6)s)
+GROUP BY "building_name"
+ORDER BY total DESC
+LIMIT 100
 ```
 
 !!! note "No SQL in the plan"
@@ -171,22 +331,10 @@ See the [QueryPlan Reference](query-plan-reference.md) for the full spec.
 
 The compiler is a **pure function**: identical input always produces identical output.
 
-- No randomness in compilation (LLM temperature is isolated to the planning stage)
-- Bind params (`p0`, `p1`, …) are generated from a reset counter on each call
+- No randomness in compilation (LLM temperature is isolated to the intent extraction stage)
+- Bind params (`p0`, `p1`, ...) are generated from a reset counter on each call
 - SHA-256 `plan_hash` attached to every generated plan
-
-This enables cache-by-hash patterns:
-
-```python
-plan = planner.plan_with_retry(question)
-cache_key = plan["meta"]["plan_hash"]
-
-if cache_key not in result_cache:
-    result_cache[cache_key] = qce.execute_query_plan(
-        engine=engine, schema_path=..., query_plan=plan
-    )
-return result_cache[cache_key]
-```
+- Intent normalization ensures equivalent phrasings produce identical plan structures
 
 ---
 
@@ -201,7 +349,7 @@ sql, params = Compiler(schema).compile(plan)
 # params: {"p0": 100}
 ```
 
-This is identical to what `cursor.execute(sql, params)` requires. There is no mechanism by which a filter value can escape into SQL syntax, making SQL injection structurally impossible regardless of what the LLM (or a user) provides.
+This makes SQL injection structurally impossible regardless of what the LLM (or a user) provides.
 
 ---
 
@@ -228,45 +376,16 @@ QCE models this with `rollup`:
 }
 ```
 
-The compiler wraps the inner query in a CTE and applies the outer aggregation over it. The `rollup.field` values **must match** aliases from the inner `metrics` — the semantic validator enforces this.
+The compiler wraps the inner query in a CTE and applies the outer aggregation over it.
 
 ---
 
 ## Auto Join Injection
 
-When a plan references columns from multiple tables, QCE automatically computes and injects the join path:
-
-```json
-{
-  "dataset": "orders",
-  "dimensions": [
-    {"field": "orders.order_date"},
-    {"field": "customers.country"}
-  ],
-  "metrics": [{"agg": "count", "field": "*", "alias": "n"}]
-}
-```
-
-QCE performs BFS over the `links` graph in `schema.yaml`, finds the shortest path from `orders` to `customers`, and injects the join definition into the plan — no manual join declaration needed.
+When a plan references columns from multiple tables, QCE automatically computes and injects the join path using BFS over the `links` graph in `schema.yaml`.
 
 !!! tip "Explicit joins override auto-injection"
-    If you declare joins in the plan's `joins` array, auto-injection is skipped for that plan. Use explicit joins to control join type (INNER vs LEFT) or when the BFS path is ambiguous.
-
----
-
-## Semantic Lint
-
-Before retrying with the LLM, `semantic_lint` compares the user's question against the plan and flags common model mistakes:
-
-| Question signal | Expected plan property | Rule |
-|---|---|---|
-| "distinct values", "unique" | `count_distinct` not `count` | 1 |
-| "per X", "by X", "each X" | non-empty `dimensions` | 2 |
-| "top N", "most", "highest" | `order_by` + `limit` set | 3 |
-| "average per", "avg per" | `rollup` present | 4 |
-| "how many", "count of" | `count_distinct(primary_id)` | 5 |
-
-Lint errors are appended to the structured retry message sent back to the LLM, giving it an explicit chance to self-correct.
+    If you declare joins in the plan's `joins` array, auto-injection is skipped for that plan.
 
 ---
 
@@ -280,13 +399,23 @@ python -m dsl_compiler.spec_builder \
   --output config/queryplan_spec_generated.yaml
 ```
 
-The generated spec contains:
-
-- System instructions (produce JSON only, never SQL, use logical names)
-- Schema summary (tables, columns, types, descriptions)  
-- The exact QueryPlan JSON shape with field descriptions
-- Operator and aggregation reference
-- Concrete examples auto-derived from your schema
-
 !!! warning "Regenerate after every schema change"
-    The spec is the LLM's only knowledge of your database structure. If you add a table and don't regenerate, the LLM cannot reference it — and the compiler will reject any column it doesn't know about regardless.
+    The spec is the LLM's only knowledge of your database structure. If you add a table and don't regenerate, the LLM cannot reference it.
+
+---
+
+## Legacy Pipeline
+
+QCE retains the original "LLM generates full QueryPlan" pipeline as a fallback. If the intent pipeline fails for any reason, `QueryAgent` automatically falls back to the legacy pipeline with retry + autofix.
+
+You can also force the legacy pipeline:
+
+```python
+agent = qce.QueryAgent(
+    engine=engine,
+    schema_path="config/schema.yaml",
+    spec_path="config/queryplan_spec_generated.yaml",
+    llm=your_llm,
+    use_intent_pipeline=False,  # force legacy
+)
+```

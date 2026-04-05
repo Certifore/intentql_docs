@@ -9,6 +9,7 @@ Get from zero to a running QCE query in under five minutes.
 - Python ≥ 3.10
 - A running Postgres database (local or remote)
 - Optional: an LLM API key (OpenAI, Gemini, Groq, etc.) — only needed if you want natural language input
+- Optional: `chromadb` — for persistent few-shot memory (recommended for production)
 
 ---
 
@@ -22,6 +23,7 @@ Install with LLM extras if you plan to use natural language input:
 
 ```bash
 pip install "qce[openai]"                   # OpenAI SDK
+pip install chromadb                        # few-shot memory (recommended)
 pip install langchain-openai                # LangChain + OpenAI
 pip install langchain-google-genai          # Gemini (free tier available)
 pip install langchain-groq                  # Groq (free, fast)
@@ -51,6 +53,7 @@ tables:
     db_table: orders       # (2)
     description: "Customer orders"
     primary_id: order_id   # (3)
+    primary_date: order_date  # (4)
     columns:
       - { name: order_id,    db_column: order_id,    type: integer }
       - { name: customer_id, db_column: customer_id, type: varchar }
@@ -77,8 +80,9 @@ links:
 
 1. **Logical name** — what appears in QueryPlan `dataset` and field refs
 2. **Physical name** — the actual Postgres table name
-3. **Primary key** — used by semantic lint to suggest `count_distinct` on the right column
-4. **Quote `"on":`** — `on` is a YAML reserved word; always quote it
+3. **Primary key** — used for `count_distinct` and semantic lint
+4. **Primary date** — used for automatic time range filter resolution (e.g., "last year" → date filters on this column)
+5. **Quote `"on":`** — `on` is a YAML reserved word; always quote it
 
 !!! warning "Always quote `\"on\":`"
     Forgetting the quotes causes the YAML parser to read `on: [...]` as `true: [...]`, which QCE catches with a clear `SchemaError` — but save yourself the confusion and quote it from the start.
@@ -137,6 +141,8 @@ print(result["sql"])
 
 ### Option B — Natural language via `QueryAgent`
 
+`QueryAgent` uses the two-stage intent pipeline by default: the LLM extracts a lightweight intent, then deterministic code builds the plan. At startup it also builds a value index from your database and initializes ChromaDB-backed few-shot memory.
+
 ```python title="agent_quickstart.py"
 from sqlalchemy import create_engine
 from openai import OpenAI
@@ -149,13 +155,24 @@ agent = qce.QueryAgent(
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
     llm=OpenAI(api_key="sk-..."),
-    max_plan_retries=1,
 )
 
 result = agent.ask("Which country had the most orders last month?")
 print(result["rows"])    # [{"ship_country": "Germany", "n": 34}]
 print(result["sql"])
 ```
+
+On the first query, the agent logs the value index build and memory initialization:
+
+```
+[ValueIndex] orders.ship_country: 21 values
+[IntentMemory] Loaded 0 examples from ChromaDB
+[IntentMemory] Found 0 similar examples
+[DSL] Intent: {"dataset": "orders", "aggregation": "count", ...}
+[IntentMemory] Stored example (1 total)
+```
+
+As you ask more questions, the memory accumulates verified intents and guides future extractions for consistency.
 
 ### Option C — LLM planner, execute yourself
 

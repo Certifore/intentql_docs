@@ -7,9 +7,11 @@
 <h1 class="qce-hero__title">LLM-powered queries.<br>Deterministic SQL. Zero trust.</h1>
 
 <p class="qce-hero__subtitle">
-QCE compiles structured <strong>QueryPlan JSON</strong> into parameterized Postgres SQL —
-enforcing your schema allowlist, neutralizing injections, and guaranteeing identical
-output on every run. Let your LLM own <em>intent</em>. Let QCE own <em>SQL</em>.
+QCE extracts a lightweight <strong>QueryIntent</strong> from natural language, normalizes it
+deterministically, validates it against real database values, and compiles it into
+parameterized Postgres SQL — enforcing your schema allowlist, neutralizing injections,
+and delivering <strong>consistent results</strong> across rephrasings.
+Let your LLM own <em>intent</em>. Let QCE own <em>everything else</em>.
 </p>
 
 <div class="qce-hero__actions">
@@ -23,27 +25,27 @@ output on every run. Let your LLM own <em>intent</em>. Let QCE own <em>SQL</em>.
   <span class="qce-badge qce-badge--blue">Postgres</span>
   <span class="qce-badge qce-badge--green">MIT License</span>
   <span class="qce-badge qce-badge--gray">SQLAlchemy 2</span>
-  <span class="qce-badge qce-badge--green">v0.1.0</span>
+  <span class="qce-badge qce-badge--green">v0.2.0</span>
 </div>
 
 </div>
 
 <div class="qce-stats" markdown>
 <div class="qce-stat">
-<span class="qce-stat__num">Deterministic</span>
-<span class="qce-stat__label">Same plan, same SQL</span>
+<span class="qce-stat__num">99% Consistent</span>
+<span class="qce-stat__label">Same question, same answer</span>
 </div>
 <div class="qce-stat">
-<span class="qce-stat__num">Parameterized</span>
-<span class="qce-stat__label">No raw value interpolation</span>
+<span class="qce-stat__num">Deterministic</span>
+<span class="qce-stat__label">Same intent, same SQL</span>
 </div>
 <div class="qce-stat">
 <span class="qce-stat__num">Schema-Scoped</span>
 <span class="qce-stat__label">Allowlist only access</span>
 </div>
 <div class="qce-stat">
-<span class="qce-stat__num">LLM-Agnostic</span>
-<span class="qce-stat__label">OpenAI, Gemini, LangChain, callable</span>
+<span class="qce-stat__num">Self-Improving</span>
+<span class="qce-stat__label">Learns from successful queries</span>
 </div>
 </div>
 
@@ -51,7 +53,7 @@ output on every run. Let your LLM own <em>intent</em>. Let QCE own <em>SQL</em>.
 
 ## The Problem with LLM-Generated SQL
 
-Every production AI data feature eventually hits the same three walls:
+Every production AI data feature eventually hits the same walls:
 
 <div class="qce-comparison" markdown>
 
@@ -59,15 +61,15 @@ Every production AI data feature eventually hits the same three walls:
 |---|:---:|:---:|
 | SQL injection via prompt | <span class="cross">No: never safe</span> | <span class="check">Yes: bind params always</span> |
 | Hallucinated table names | <span class="cross">No: silent wrong answer risk</span> | <span class="check">Yes: hard error, allowlist enforced</span> |
-| Non-deterministic output | <span class="cross">No: varies per call</span> | <span class="check">Yes: same plan -> same SQL</span> |
+| Non-deterministic output | <span class="cross">No: varies per call</span> | <span class="check">Yes: intent normalization + memory</span> |
+| Inconsistent across rephrasings | <span class="cross">No: different SQL each time</span> | <span class="check">Yes: few-shot memory + normalization</span> |
+| Wrong filter values | <span class="cross">No: LLM guesses names</span> | <span class="check">Yes: value index from real data</span> |
 | LLM picks JOIN strategy | <span class="cross">No: unpredictable</span> | <span class="check">Yes: BFS shortest path, always</span> |
 | Needs DB introspection | <span class="cross">No: exposes full schema</span> | <span class="check">Yes: LLM sees logical names only</span> |
 
 </div>
 
-QCE solves this by **separating intent from execution**. The LLM produces a structured
-`QueryPlan` JSON — no SQL, no table names, no dialect concerns. The compiler takes that
-plan and produces correct, safe, parameterized SQL every time.
+QCE solves this with a **two-stage architecture**. The LLM extracts a lightweight `QueryIntent` — no SQL, no table names, no structural decisions. Deterministic code normalizes the intent, validates it against real database values, and builds a correct `QueryPlan` that compiles into safe, parameterized SQL.
 
 ---
 
@@ -77,26 +79,49 @@ plan and produces correct, safe, parameterized SQL every time.
   User question
        │
        ▼
-  ┌──────────────────────────────────────────────┐
-  │  LLM  (OpenAI · Gemini · Groq · any model)  │
-  │  Produces: QueryPlan JSON                    │  ← structured intent, not SQL
-  └──────────────────────────────────────────────┘
+  ┌────────────────────────────────────────────────────┐
+  │  Few-Shot Memory (ChromaDB)                        │
+  │  Retrieves similar past questions + verified       │  ← learns from success
+  │  intents as examples for the LLM                   │
+  └────────────────────────────────────────────────────┘
        │
-       ▼  { "dataset": "orders", "filters": [...], "metrics": [...] }
-  ┌──────────────────────────────────────────────┐
-  │  QCE Compiler                                │
-  │  · Validates against schema.yaml allowlist   │
-  │  · All values → bind parameters              │
-  │  · Auto-injects JOIN paths via BFS           │
-  │  · Resolves $relative_date sentinels         │
-  └──────────────────────────────────────────────┘
+       ▼
+  ┌────────────────────────────────────────────────────┐
+  │  LLM  (OpenAI · Gemini · Groq · any model)        │
+  │  Extracts: QueryIntent JSON                        │  ← lightweight intent, not SQL
+  │  Guided by: schema + value index + few-shot        │
+  └────────────────────────────────────────────────────┘
        │
-       ▼  SELECT count(*) AS n FROM orders WHERE ship_country = %(p0)s
-  ┌──────────────────────────────────────────────┐
-  │  Postgres                                    │
-  └──────────────────────────────────────────────┘
+       ▼  { "dataset": "orders", "keyword": "...", "filters": [...] }
+  ┌────────────────────────────────────────────────────┐
+  │  Intent Normalization + Value Validation           │
+  │  · Absorbs redundant keyword/filter overlap        │
+  │  · Fuzzy-resolves values against real DB data      │  ← deterministic cleanup
+  │  · Retries LLM if values don't match              │
+  └────────────────────────────────────────────────────┘
        │
-       ▼  { "rows": [...], "row_count": 122, "sql": "...", "params": {...} }
+       ▼
+  ┌────────────────────────────────────────────────────┐
+  │  Deterministic Plan Builder                        │
+  │  · Intent + schema metadata → QueryPlan JSON       │
+  │  · Keyword → OR clause, time → date sentinels     │  ← zero LLM decisions
+  │  · count → count_distinct(primary_id)              │
+  └────────────────────────────────────────────────────┘
+       │
+       ▼
+  ┌────────────────────────────────────────────────────┐
+  │  QCE Compiler                                      │
+  │  · Validates against schema.yaml allowlist          │
+  │  · All values → bind parameters                    │
+  │  · Auto-injects JOIN paths via BFS                 │
+  └────────────────────────────────────────────────────┘
+       │
+       ▼  SELECT count(DISTINCT "id") FROM ... WHERE ...
+  ┌────────────────────────────────────────────────────┐
+  │  Postgres                                          │
+  └────────────────────────────────────────────────────┘
+       │
+       ▼  { "rows": [...], "row_count": 42, "sql": "...", "params": {...} }
 ```
 
 ---
@@ -121,7 +146,7 @@ plan and produces correct, safe, parameterized SQL every time.
 
     result = agent.ask("Top 10 customers by total order value last 90 days")
     print(result["rows"])
-    print(result["sql"])  # always inspect the generated SQL
+    print(result["sql"])
     ```
 
 === "Hand-written plan"
@@ -149,10 +174,8 @@ plan and produces correct, safe, parameterized SQL every time.
             "limit": 1,
         },
     )
-    print(result["rows"])   # [{"total_freight": 3847.25}]
-    print(result["sql"])    # SELECT sum(freight) AS total_freight FROM orders
-                            # WHERE ship_country = %(p0)s AND order_date >= %(p1)s
-                            # LIMIT 1
+    print(result["rows"])
+    print(result["sql"])
     ```
 
 === "Validate offline"
@@ -167,7 +190,7 @@ plan and produces correct, safe, parameterized SQL every time.
 
     if errors:
         for e in errors:
-            print(e)   # "$.filters[0].field: unknown column 'revenue' on table 'orders'"
+            print(e)
     else:
         print("Plan is valid")
     ```
@@ -177,6 +200,16 @@ plan and produces correct, safe, parameterized SQL every time.
 ## Feature Highlights
 
 <div class="qce-features" markdown>
+<div class="qce-feature" markdown>
+<div class="qce-feature__icon">Consistency</div>
+<p class="qce-feature__title">99% Consistent Across Rephrasings</p>
+<p class="qce-feature__desc">Intent normalization + few-shot memory ensure the same question phrased differently produces the same result. The system learns from every successful query.</p>
+</div>
+<div class="qce-feature" markdown>
+<div class="qce-feature__icon">Accuracy</div>
+<p class="qce-feature__title">Value Index Grounding</p>
+<p class="qce-feature__desc">At startup, QCE indexes real database values and injects them as pick-lists into the LLM prompt. The LLM picks from actual data — no more hallucinated filter values.</p>
+</div>
 <div class="qce-feature" markdown>
 <div class="qce-feature__icon">Security</div>
 <p class="qce-feature__title">Injection-Proof by Design</p>
@@ -188,19 +221,9 @@ plan and produces correct, safe, parameterized SQL every time.
 <p class="qce-feature__desc">Only tables and columns declared in <code>schema.yaml</code> are reachable. Unknown names raise a hard <code>QueryPlanError</code> — no silent degradation.</p>
 </div>
 <div class="qce-feature" markdown>
-<div class="qce-feature__icon">Determinism</div>
-<p class="qce-feature__title">Deterministic Output</p>
-<p class="qce-feature__desc">The compiler is a pure function. Same <code>QueryPlan</code> → same SQL every time. Cache by plan hash, regression-test against a corpus.</p>
-</div>
-<div class="qce-feature" markdown>
-<div class="qce-feature__icon">Joins</div>
-<p class="qce-feature__title">Auto Join Injection</p>
-<p class="qce-feature__desc">Reference columns from multiple tables. QCE runs BFS over your schema's link graph and injects the shortest join path automatically.</p>
-</div>
-<div class="qce-feature" markdown>
-<div class="qce-feature__icon">Retries</div>
-<p class="qce-feature__title">LLM Retry Loop</p>
-<p class="qce-feature__desc">Validation errors are structured and fed back to the LLM as focused correction prompts — not stack traces. Models self-correct reliably.</p>
+<div class="qce-feature__icon">Memory</div>
+<p class="qce-feature__title">Self-Improving via ChromaDB</p>
+<p class="qce-feature__desc">Successful (question, intent) pairs are stored in ChromaDB and retrieved as few-shot examples for similar future questions. No manual training required.</p>
 </div>
 <div class="qce-feature" markdown>
 <div class="qce-feature__icon">LLM</div>
@@ -218,9 +241,9 @@ pip install qce
 ```
 
 ```bash
-# With LLM extras
+# With LLM extras and memory
 pip install "qce[openai]"    # + openai SDK
-pip install "qce[google]"    # + google-generativeai
+pip install chromadb          # for few-shot memory persistence
 ```
 
 !!! tip "Installing from source"
@@ -244,7 +267,7 @@ pip install "qce[google]"    # + google-generativeai
 <a class="qce-path-card" href="concepts/">
   <span class="qce-path-card__kicker">Architecture</span>
   <span class="qce-path-card__title">Understand the Pipeline</span>
-  <span class="qce-path-card__desc">See how plans are validated, compiled, and executed safely and deterministically.</span>
+  <span class="qce-path-card__desc">See how intents are extracted, normalized, validated, and compiled into safe SQL.</span>
   <span class="qce-path-card__cta">Read concepts →</span>
 </a>
 <a class="qce-path-card" href="query-plan-reference/">

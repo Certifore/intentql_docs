@@ -73,10 +73,24 @@ If your physical table or column name contains uppercase letters, spaces, or res
 
 The `primary_id` field names the primary key column's **logical name**. It is used by:
 
-1. **Semantic lint Rule 5** — if the question says "how many customers", the lint check verifies that the plan uses `count_distinct("customer_id")` (the primary_id) rather than counting a non-key column.
-2. **Spec builder** — auto-generates correct `count_distinct(primary_id)` examples in the LLM prompt.
+1. **Intent pipeline** — the plan builder uses `count_distinct(primary_id)` instead of `count(*)` for accurate counting.
+2. **Semantic lint Rule 5** — verifies that "how many" questions use `count_distinct` on the primary key.
+3. **Spec builder** — auto-generates correct `count_distinct(primary_id)` examples in the LLM prompt.
 
 It is not required, but recommended for any table you expect users to ask "how many X" questions about.
+
+### `primary_date`
+
+The `primary_date` field names the date column used for time range filters. When the user asks about "last year" or "last 30 days," the intent pipeline maps the time range to date filters on this column.
+
+```yaml
+- name: work_orders
+  db_table: '"finalWorkOrders"'
+  primary_id: work_order_id
+  primary_date: created_date
+```
+
+Without `primary_date`, time range mentions in questions are silently ignored.
 
 ### `keyword_search_or` (optional)
 

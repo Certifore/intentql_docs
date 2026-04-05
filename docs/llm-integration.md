@@ -276,7 +276,7 @@ print(plan["meta"])
 
 ## QueryAgent
 
-The highest-level API — combines planner + executor in one call:
+The highest-level API — combines the intent pipeline + compiler + executor in one call. On initialization, it builds a value index from your database and connects to ChromaDB for few-shot memory.
 
 ```python
 agent = qce.QueryAgent(
@@ -284,11 +284,14 @@ agent = qce.QueryAgent(
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
     llm=your_llm,
-    max_plan_retries=1,
 )
 
 result = agent.ask("What are the top 5 products by revenue this quarter?")
 ```
+
+**Under the hood**, `ask()` runs the full intent pipeline: memory lookup → LLM intent extraction → normalization → value validation → deterministic plan build → compile → execute → memory store.
+
+If the intent pipeline fails for any reason, it automatically falls back to the legacy QueryPlan pipeline with retries.
 
 **Success response:**
 
@@ -299,7 +302,7 @@ result = agent.ask("What are the top 5 products by revenue this quarter?")
     "columns":   ["product_name", "revenue"],
     "sql":       "SELECT product_name, sum(...) ...",
     "params":    {"p0": "2026-01-01", ...},
-    "meta":      {"plan_hash": "...", "retry_count": 0, ...},
+    "meta":      {"pipeline": "intent", "intent": {...}, "retry_count": 0, ...},
 }
 ```
 
@@ -308,7 +311,7 @@ result = agent.ask("What are the top 5 products by revenue this quarter?")
 ```python
 {
     "error": {
-        "message": "validation failed after 1 retry",
+        "message": "validation failed after retries",
         "validation_errors": [
             {"path": "$.metrics[0].field", "message": "unknown column 'revenue' on 'orders'"}
         ],
@@ -321,7 +324,35 @@ result = agent.ask("What are the top 5 products by revenue this quarter?")
 
 ## What the LLM Receives
 
-QCE sends the LLM exactly three messages:
+### Intent Pipeline (Default)
+
+In the two-stage intent pipeline, the LLM receives a richer prompt with up to 5 messages:
+
+```
+[system]  Intent extraction instructions
+          "You are an intent extractor. Given a database schema and a user
+           question, output a JSON object capturing WHAT the user wants..."
+
+[system]  Database schema summary
+          (tables, columns, types, descriptions, metadata)
+
+[system]  Known database values (from value index)
+          "KNOWN DATABASE VALUES (use these exact values in filters):
+             Table: orders
+               ship_country: [Germany, France, ...]"
+
+[system]  Few-shot examples (from memory, if similar questions exist)
+          "EXAMPLES — For similar questions, here are the intents that were
+           previously extracted and verified correct..."
+
+[user]    The natural language question
+```
+
+The value index and few-shot examples are injected dynamically — they're not part of the spec file.
+
+### Legacy Pipeline
+
+In the legacy pipeline, the LLM receives three messages:
 
 ```
 [system]  QCE system instructions
@@ -333,7 +364,7 @@ QCE sends the LLM exactly three messages:
 [user]    The natural language question
 ```
 
-To inspect the exact prompt:
+To inspect the exact legacy prompt:
 
 ```python
 from dsl_compiler.api.spec_api import get_queryplan_instructions
@@ -346,7 +377,7 @@ print(prompt)
 ```
 
 !!! tip "Keep the spec up to date"
-    Regenerate `queryplan_spec_generated.yaml` whenever you add tables or columns to `schema.yaml`. The spec is the LLM's only source of truth about your database.
+    Regenerate `queryplan_spec_generated.yaml` whenever you add tables or columns to `schema.yaml`. The spec is used by the legacy pipeline and as a fallback.
 
 ---
 
