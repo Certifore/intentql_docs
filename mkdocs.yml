@@ -1,9 +1,9 @@
 site_name: IntentQL
 site_description: Intent-driven, deterministic natural language to SQL for Postgres. Ship LLM-powered data features without ever letting an LLM write raw SQL.
 site_author: Alexander Abakah
-site_url: https://certifore.github.io/qce_docs
-repo_url: https://github.com/Certifore/qce_docs
-repo_name: Certifore/qce_docs
+site_url: https://certifore.github.io/intentql_docs
+repo_url: https://github.com/Certifore/intentql_docs
+repo_name: Certifore/intentql_docs
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2026 Alexander Abakah &mdash; MIT License
 
