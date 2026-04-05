@@ -1,0 +1,31 @@
+{
+  "run_at": "2026-03-27T18:48:06.890101+00:00",
+  "all_passed": true,
+  "results": [
+    {
+      "benchmark": "injection_resistance",
+      "total": 50,
+      "rejected": 50,
+      "passed_through": [],
+      "score": "50/50",
+      "passed": true
+    },
+    {
+      "benchmark": "determinism",
+      "total": 20,
+      "runs_per_question": 10,
+      "deterministic": 20,
+      "failures": [],
+      "score": "20/20",
+      "passed": true
+    },
+    {
+      "benchmark": "hallucination_rejection",
+      "total": 15,
+      "rejected": 15,
+      "silent_failures": [],
+      "score": "15/15",
+      "passed": true
+    }
+  ]
+}

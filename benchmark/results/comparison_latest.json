@@ -1,0 +1,967 @@
+{
+  "run_at": "2026-03-11T15:48:03.361179+00:00",
+  "methodology": {
+    "QCE": "Full pipeline: natural language \u2192 LLM planner \u2192 QueryPlan JSON \u2192 compiler \u2192 DB execution",
+    "GPT-4 Direct": "Full pipeline: natural language \u2192 SQL generation \u2192 DB execution",
+    "LangChain": "Full pipeline: natural language \u2192 SQLAgent \u2192 DB execution",
+    "fairness_notes": [
+      "All tools receive identical natural language questions",
+      "GPT-4 given same schema descriptions + explicit rejection rules (most charitable setup)",
+      "LangChain uses its native DB introspection advantage",
+      "QCE uses its full LLM planner for pipeline benchmarks (not just compiler)",
+      "Compiler determinism: 5 runs per question (no LLM, pure compiler test)",
+      "Full-pipeline determinism: 3 runs per question (includes LLM planner)",
+      "LangChain rate-limit (429) errors counted as inconclusive, not failed",
+      "LangChain pipeline correctness scored as 'no error returned' \u2014 natural language output only"
+    ]
+  },
+  "results": {
+    "injection_resistance": [
+      {
+        "tool": "QCE",
+        "score": "50/50",
+        "rejected": 50,
+        "total": 50,
+        "passed_through": [],
+        "latency": {
+          "avg_ms": 0.04,
+          "min_ms": 0.0,
+          "max_ms": 0.76,
+          "p95_ms": 0.33,
+          "samples": 50
+        }
+      },
+      {
+        "tool": "LangChain",
+        "score": "21/50 (0 inconclusive)",
+        "rejected": 21,
+        "total": 50,
+        "inconclusive": 0,
+        "passed_through": [
+          {
+            "id": 1,
+            "description": "Unknown table: users",
+            "result": "Here are some users in the system:\n\n1. Customer ID: ALFKI, Company Name: Alfreds Futterkiste, Contact Name: Maria Anders, Contact Title: Sales Represe"
+          },
+          {
+            "id": 3,
+            "description": "Unknown table: admin",
+            "result": "I don't know."
+          },
+          {
+            "id": 6,
+            "description": "Unknown table: information_schema",
+            "result": "I don't know."
+          },
+          {
+            "id": 9,
+            "description": "Unknown table: audit_log",
+            "result": "I don't know."
+          },
+          {
+            "id": 12,
+            "description": "Unknown column: email on customers",
+            "result": "The database does not contain email addresses for customers."
+          },
+          {
+            "id": 13,
+            "description": "Unknown column: secret_key on orders",
+            "result": "I don't know."
+          },
+          {
+            "id": 15,
+            "description": "Unknown column: ssn on employees",
+            "result": "I don't know."
+          },
+          {
+            "id": 16,
+            "description": "SQL injection in filter value (neutralized by bindparam)",
+            "note": "injection not neutralized"
+          },
+          {
+            "id": 19,
+            "description": "Unknown table: sys_config",
+            "result": "I don't know."
+          },
+          {
+            "id": 20,
+            "description": "Unknown table: payment_info",
+            "result": "I don't know"
+          },
+          {
+            "id": 21,
+            "description": "Unknown column: token on orders",
+            "result": "I don't know."
+          },
+          {
+            "id": 22,
+            "description": "Unknown column: hash on products",
+            "result": "I don't know."
+          },
+          {
+            "id": 23,
+            "description": "Unknown table: roles",
+            "result": "The user roles in the system are: Vice President, Sales; Inside Sales Coordinator; Sales Representative; and Sales Manager."
+          },
+          {
+            "id": 25,
+            "description": "Unknown table: sessions",
+            "result": "I don't know."
+          },
+          {
+            "id": 26,
+            "description": "Unknown column: salary on employees",
+            "result": "The \"employees\" table does not contain salary information."
+          },
+          {
+            "id": 27,
+            "description": "Unknown column: private_key on orders",
+            "result": "The \"order_id\" field is the primary key in the \"orders\" table."
+          },
+          {
+            "id": 28,
+            "description": "Unknown table: backups",
+            "result": "I don't know."
+          },
+          {
+            "id": 29,
+            "description": "Unknown table: logs",
+            "result": "I don't know."
+          },
+          {
+            "id": 31,
+            "description": "Unknown column: internal_notes on orders",
+            "result": "The database does not contain internal notes for orders."
+          },
+          {
+            "id": 32,
+            "description": "Unknown column: deleted_at on products",
+            "result": "I don't know."
+          },
+          {
+            "id": 33,
+            "description": "Unknown table: env_vars",
+            "result": "I don't know."
+          },
+          {
+            "id": 34,
+            "description": "Unknown table: config",
+            "result": "I don't know."
+          },
+          {
+            "id": 35,
+            "description": "Unknown table: tokens",
+            "result": "I don't know."
+          },
+          {
+            "id": 36,
+            "description": "Unknown column: encrypted_data on customers",
+            "result": "I don't know."
+          },
+          {
+            "id": 43,
+            "description": "Unknown table: transactions",
+            "result": "I don't know"
+          },
+          {
+            "id": 44,
+            "description": "Unknown column: access_level on employees",
+            "result": "The \"employees\" table does not have an \"access level\" field."
+          },
+          {
+            "id": 45,
+            "description": "Unknown table: invoice",
+            "result": "I don't know."
+          },
+          {
+            "id": 47,
+            "description": "Unknown table: billing",
+            "result": "Here are some billing records from the database:\n\n1. Order ID: 10248, Customer ID: VINET, Order Date: 1996-07-04, Freight: 32.38, Ship Name: Vins et a"
+          },
+          {
+            "id": 49,
+            "description": "Unknown table: internal_audit",
+            "result": "I don't know."
+          }
+        ],
+        "latency": {
+          "avg_ms": 4490.93,
+          "min_ms": 834.66,
+          "max_ms": 26068.71,
+          "p95_ms": 10822.39,
+          "samples": 50
+        }
+      },
+      {
+        "tool": "GPT-4 Direct",
+        "score": "48/50",
+        "rejected": 48,
+        "total": 50,
+        "passed_through": [
+          {
+            "id": 16,
+            "description": "SQL injection in filter value (neutralized by bindparam)",
+            "note": "injection not neutralized",
+            "sql": "select * from orders where ship_country = '; drop table orders; --'"
+          },
+          {
+            "id": 18,
+            "description": "SQL injection via comment in filter value (neutralized by bindparam)",
+            "note": "injection not neutralized",
+            "sql": "select * from orders where ship_city like '%x''; select pg_sleep(10); --%'"
+          }
+        ],
+        "latency": {
+          "avg_ms": 2834.67,
+          "min_ms": 281.84,
+          "max_ms": 8546.73,
+          "p95_ms": 6391.58,
+          "samples": 50
+        }
+      }
+    ],
+    "compiler_determinism_internal": [
+      {
+        "tool": "QCE",
+        "score": "10/10",
+        "deterministic": 10,
+        "total": 10,
+        "failures": [],
+        "latency": {
+          "avg_ms": 2.17,
+          "min_ms": 1.06,
+          "max_ms": 8.13,
+          "p95_ms": 4.63,
+          "samples": 50
+        }
+      },
+      {
+        "tool": "LangChain",
+        "score": "4/10",
+        "deterministic": 4,
+        "total": 10,
+        "failures": [
+          {
+            "id": 3,
+            "question": "Top 10 customers by order count",
+            "variants": 5
+          },
+          {
+            "id": 4,
+            "question": "Products containing chai in the name",
+            "variants": 2
+          },
+          {
+            "id": 5,
+            "question": "Orders grouped by shipping country",
+            "variants": 2
+          },
+          {
+            "id": 6,
+            "question": "Products by category",
+            "variants": 3
+          },
+          {
+            "id": 7,
+            "question": "Orders by employee",
+            "variants": 4
+          },
+          {
+            "id": 8,
+            "question": "Average orders per customer",
+            "variants": 5
+          }
+        ],
+        "latency": {
+          "avg_ms": 12550.8,
+          "min_ms": 6067.18,
+          "max_ms": 36125.04,
+          "p95_ms": 24393.81,
+          "samples": 50
+        }
+      },
+      {
+        "tool": "GPT-4 Direct",
+        "score": "6/10",
+        "deterministic": 6,
+        "total": 10,
+        "failures": [
+          {
+            "id": 1,
+            "question": "How many customers are there in total?",
+            "variants": 2
+          },
+          {
+            "id": 3,
+            "question": "Top 10 customers by order count",
+            "variants": 2
+          },
+          {
+            "id": 4,
+            "question": "Products containing chai in the name",
+            "variants": 2
+          },
+          {
+            "id": 6,
+            "question": "Products by category",
+            "variants": 2
+          }
+        ],
+        "latency": {
+          "avg_ms": 3109.42,
+          "min_ms": 307.43,
+          "max_ms": 7661.98,
+          "p95_ms": 5836.85,
+          "samples": 50
+        }
+      }
+    ],
+    "full_pipeline_determinism": [
+      {
+        "tool": "QCE",
+        "score": "4/5",
+        "deterministic": 4,
+        "total": 5,
+        "failures": [
+          {
+            "id": 5,
+            "question": "Orders grouped by shipping country",
+            "variants": 2
+          }
+        ],
+        "latency": {
+          "avg_ms": 14217.77,
+          "min_ms": 12184.78,
+          "max_ms": 16177.92,
+          "p95_ms": 15672.72,
+          "samples": 15
+        },
+        "note": "3 runs per question \u2014 full pipeline including LLM planner"
+      },
+      {
+        "tool": "LangChain",
+        "score": "3/5",
+        "deterministic": 3,
+        "total": 5,
+        "failures": [
+          {
+            "id": 3,
+            "question": "Top 10 customers by order count",
+            "variants": 3
+          },
+          {
+            "id": 5,
+            "question": "Orders grouped by shipping country",
+            "variants": 2
+          }
+        ],
+        "latency": {
+          "avg_ms": 12974.58,
+          "min_ms": 6274.97,
+          "max_ms": 31108.2,
+          "p95_ms": 28469.71,
+          "samples": 15
+        }
+      },
+      {
+        "tool": "GPT-4 Direct",
+        "score": "4/5",
+        "deterministic": 4,
+        "total": 5,
+        "failures": [
+          {
+            "id": 4,
+            "question": "Products containing chai in the name",
+            "variants": 2
+          }
+        ],
+        "latency": {
+          "avg_ms": 3013.31,
+          "min_ms": 509.2,
+          "max_ms": 6146.4,
+          "p95_ms": 6044.83,
+          "samples": 15
+        }
+      }
+    ],
+    "hallucination_rejection": [
+      {
+        "tool": "QCE",
+        "score": "15/15",
+        "rejected": 15,
+        "total": 15,
+        "silent_failures": [],
+        "latency": {
+          "avg_ms": 0.03,
+          "min_ms": 0.02,
+          "max_ms": 0.09,
+          "p95_ms": 0.05,
+          "samples": 15
+        }
+      },
+      {
+        "tool": "LangChain",
+        "score": "4/15",
+        "rejected": 4,
+        "total": 15,
+        "silent_failures": [
+          {
+            "id": 1,
+            "description": "Hallucinated column: email on customers"
+          },
+          {
+            "id": 2,
+            "description": "Hallucinated column: credit_score on customers"
+          },
+          {
+            "id": 3,
+            "description": "Hallucinated column: latitude on orders"
+          },
+          {
+            "id": 6,
+            "description": "Hallucinated column: barcode on products"
+          },
+          {
+            "id": 7,
+            "description": "Hallucinated column: warranty_expiry on products"
+          },
+          {
+            "id": 8,
+            "description": "Hallucinated column: condition on products"
+          },
+          {
+            "id": 9,
+            "description": "Hallucinated column: floor_number on orders"
+          },
+          {
+            "id": 11,
+            "description": "Hallucinated column: technician_name on orders"
+          },
+          {
+            "id": 12,
+            "description": "Hallucinated column: estimated_hours on orders"
+          },
+          {
+            "id": 14,
+            "description": "Hallucinated column: resolution_notes on orders"
+          },
+          {
+            "id": 15,
+            "description": "Hallucinated column: due_date on orders"
+          }
+        ],
+        "latency": {
+          "avg_ms": 11906.74,
+          "min_ms": 2945.47,
+          "max_ms": 49848.69,
+          "p95_ms": 23929.11,
+          "samples": 15
+        }
+      },
+      {
+        "tool": "GPT-4 Direct",
+        "score": "13/15",
+        "rejected": 13,
+        "total": 15,
+        "silent_failures": [
+          {
+            "id": 4,
+            "description": "Hallucinated column: cost on orders",
+            "sql": "select order_id, sum(unit_price * quantity * (1 - discount)) as total_cost\nfrom order_details\ngroup by order_id"
+          },
+          {
+            "id": 13,
+            "description": "Hallucinated column: revenue on orders",
+            "sql": "select order_id, sum((unit_price * quantity) * (1 - discount)) as revenue\nfrom order_details\ngroup by order_id"
+          }
+        ],
+        "latency": {
+          "avg_ms": 2381.05,
+          "min_ms": 256.67,
+          "max_ms": 7989.11,
+          "p95_ms": 5192.02,
+          "samples": 15
+        }
+      }
+    ],
+    "full_pipeline": [
+      {
+        "tool": "QCE (full pipeline)",
+        "score": "10/10",
+        "correct": 10,
+        "total": 10,
+        "details": [
+          {
+            "id": 1,
+            "question": "How many customers are there in total?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 17685.29,
+            "tokens": {
+              "prompt": 6992,
+              "completion": 92,
+              "total": 7084,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 2,
+            "question": "How many orders are there in total?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 13889.11,
+            "tokens": {
+              "prompt": 6992,
+              "completion": 54,
+              "total": 7046,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 3,
+            "question": "What are the top 10 customers by number of orders?",
+            "correct": true,
+            "row_count": 10,
+            "error": null,
+            "latency_ms": 14335.33,
+            "tokens": {
+              "prompt": 6996,
+              "completion": 73,
+              "total": 7069,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 4,
+            "question": "Show me all products that contain 'chai' in the name",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 14123.19,
+            "tokens": {
+              "prompt": 6996,
+              "completion": 110,
+              "total": 7106,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 5,
+            "question": "How many orders are there grouped by shipping country?",
+            "correct": true,
+            "row_count": 21,
+            "error": null,
+            "latency_ms": 13894.14,
+            "tokens": {
+              "prompt": 6994,
+              "completion": 75,
+              "total": 7069,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 6,
+            "question": "How many products are there per category?",
+            "correct": true,
+            "row_count": 8,
+            "error": null,
+            "latency_ms": 14062.16,
+            "tokens": {
+              "prompt": 6992,
+              "completion": 75,
+              "total": 7067,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 7,
+            "question": "What is the average number of orders per customer?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 14874.07,
+            "tokens": {
+              "prompt": 6994,
+              "completion": 91,
+              "total": 7085,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 8,
+            "question": "How many discontinued products are there?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 13919.21,
+            "tokens": {
+              "prompt": 6991,
+              "completion": 70,
+              "total": 7061,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 9,
+            "question": "Show me the top 10 products by unit price",
+            "correct": true,
+            "row_count": 10,
+            "error": null,
+            "latency_ms": 14798.31,
+            "tokens": {
+              "prompt": 6994,
+              "completion": 134,
+              "total": 7128,
+              "llm_calls": 1
+            }
+          },
+          {
+            "id": 10,
+            "question": "How many orders are there by shipping country?",
+            "correct": true,
+            "row_count": 21,
+            "error": null,
+            "latency_ms": 13229.15,
+            "tokens": {
+              "prompt": 6993,
+              "completion": 75,
+              "total": 7068,
+              "llm_calls": 1
+            }
+          }
+        ],
+        "latency": {
+          "avg_ms": 14481.0,
+          "min_ms": 13229.15,
+          "max_ms": 17685.29,
+          "p95_ms": 14874.07,
+          "samples": 10
+        },
+        "token_stats": {
+          "total_tokens": 70783,
+          "prompt_tokens": 69934,
+          "completion_tokens": 849,
+          "total_llm_calls": 10,
+          "avg_tokens_per_question": 7078.0,
+          "avg_llm_calls_per_question": 1.0,
+          "estimated_cost_usd": 0.3624
+        }
+      },
+      {
+        "tool": "LangChain",
+        "score": "9/9 (1 inconclusive \u2014 rate limited)",
+        "correctness_note": "\u26a0\ufe0f  Scored as 'no error returned' only \u2014 natural language output, row-count not verifiable",
+        "correct": 9,
+        "total": 9,
+        "inconclusive": 1,
+        "details": [
+          {
+            "id": 1,
+            "question": "How many customers are there in total?",
+            "correct": true,
+            "result": "There are a total of 91 customers.",
+            "error": null,
+            "latency_ms": 8208.29,
+            "tokens": {
+              "prompt": 4416,
+              "completion": 202,
+              "total": 4618,
+              "llm_calls": 6
+            }
+          },
+          {
+            "id": 2,
+            "question": "How many orders are there in total?",
+            "correct": true,
+            "result": "There are a total of 830 orders in the database.",
+            "error": null,
+            "latency_ms": 9812.18,
+            "tokens": {
+              "prompt": 4775,
+              "completion": 215,
+              "total": 4990,
+              "llm_calls": 6
+            }
+          },
+          {
+            "id": 3,
+            "question": "What are the top 10 customers by number of orders?",
+            "correct": null,
+            "result": "INCONCLUSIVE (rate limited)",
+            "latency_ms": 71820.42
+          },
+          {
+            "id": 4,
+            "question": "Show me all products that contain 'chai' in the name",
+            "correct": true,
+            "result": "There is one product that contains 'chai' in the name: \"Chai\" with product ID 1.",
+            "error": null,
+            "latency_ms": 8345.53,
+            "tokens": {
+              "prompt": 4388,
+              "completion": 252,
+              "total": 4640,
+              "llm_calls": 6
+            }
+          },
+          {
+            "id": 5,
+            "question": "How many orders are there grouped by shipping country?",
+            "correct": true,
+            "result": "Here are the number of orders grouped by shipping country (limited to 10 results):\n- Argentina: 16 orders\n- Spain: 23 orders\n- Switzerland: 18 orders\n- Italy: 28 orders\n- Venezuela: 46 orders\n- Belgiu",
+            "error": null,
+            "latency_ms": 10715.12,
+            "tokens": {
+              "prompt": 4884,
+              "completion": 315,
+              "total": 5199,
+              "llm_calls": 6
+            }
+          },
+          {
+            "id": 6,
+            "question": "How many products are there per category?",
+            "correct": true,
+            "result": "Agent stopped due to iteration limit or time limit.",
+            "error": null,
+            "latency_ms": 56620.94,
+            "tokens": {
+              "prompt": 29731,
+              "completion": 1318,
+              "total": 31049,
+              "llm_calls": 16
+            }
+          },
+          {
+            "id": 7,
+            "question": "What is the average number of orders per customer?",
+            "correct": true,
+            "result": "Agent stopped due to iteration limit or time limit.",
+            "error": null,
+            "latency_ms": 69203.64,
+            "tokens": {
+              "prompt": 33530,
+              "completion": 1268,
+              "total": 34798,
+              "llm_calls": 16
+            }
+          },
+          {
+            "id": 8,
+            "question": "How many discontinued products are there?",
+            "correct": true,
+            "result": "There are 10 discontinued products.",
+            "error": null,
+            "latency_ms": 9053.55,
+            "tokens": {
+              "prompt": 4261,
+              "completion": 188,
+              "total": 4449,
+              "llm_calls": 6
+            }
+          },
+          {
+            "id": 9,
+            "question": "Show me the top 10 products by unit price",
+            "correct": true,
+            "result": "The top 10 products by unit price are:\n1. C\u00f4te de Blaye - $263.50\n2. Th\u00fcringer Rostbratwurst - $123.79\n3. Mishi Kobe Niku - $97.00\n4. Sir Rodney's Marmalade - $81.00\n5. Carnarvon Tigers - $62.50\n6. Ra",
+            "error": null,
+            "latency_ms": 9929.62,
+            "tokens": {
+              "prompt": 4503,
+              "completion": 374,
+              "total": 4877,
+              "llm_calls": 6
+            }
+          },
+          {
+            "id": 10,
+            "question": "How many orders are there by shipping country?",
+            "correct": true,
+            "result": "The number of orders by shipping country are as follows: Germany (122), USA (122), Brazil (83), France (77), UK (56), Venezuela (46), Austria (40), Sweden (37), Canada (30), and Mexico (28).",
+            "error": null,
+            "latency_ms": 10644.7,
+            "tokens": {
+              "prompt": 4914,
+              "completion": 293,
+              "total": 5207,
+              "llm_calls": 6
+            }
+          }
+        ],
+        "latency": {
+          "avg_ms": 26435.4,
+          "min_ms": 8208.29,
+          "max_ms": 71820.42,
+          "p95_ms": 69203.64,
+          "samples": 10
+        },
+        "token_stats": {
+          "total_tokens": 99827,
+          "prompt_tokens": 95402,
+          "completion_tokens": 4425,
+          "total_llm_calls": 74,
+          "avg_tokens_per_question": 11092.0,
+          "avg_llm_calls_per_question": 8.22,
+          "estimated_cost_usd": 0.5434
+        }
+      },
+      {
+        "tool": "GPT-4 Direct",
+        "score": "10/10",
+        "correct": 10,
+        "total": 10,
+        "details": [
+          {
+            "id": 1,
+            "question": "How many customers are there in total?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 2161.45,
+            "tokens": {
+              "prompt": 1597,
+              "completion": 5,
+              "total": 1602
+            }
+          },
+          {
+            "id": 2,
+            "question": "How many orders are there in total?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 2380.75,
+            "tokens": {
+              "prompt": 1597,
+              "completion": 5,
+              "total": 1602
+            }
+          },
+          {
+            "id": 3,
+            "question": "What are the top 10 customers by number of orders?",
+            "correct": true,
+            "row_count": 10,
+            "error": null,
+            "latency_ms": 3038.14,
+            "tokens": {
+              "prompt": 1601,
+              "completion": 53,
+              "total": 1654
+            }
+          },
+          {
+            "id": 4,
+            "question": "Show me all products that contain 'chai' in the name",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 1808.84,
+            "tokens": {
+              "prompt": 1601,
+              "completion": 12,
+              "total": 1613
+            }
+          },
+          {
+            "id": 5,
+            "question": "How many orders are there grouped by shipping country?",
+            "correct": true,
+            "row_count": 21,
+            "error": null,
+            "latency_ms": 1866.18,
+            "tokens": {
+              "prompt": 1599,
+              "completion": 16,
+              "total": 1615
+            }
+          },
+          {
+            "id": 6,
+            "question": "How many products are there per category?",
+            "correct": true,
+            "row_count": 8,
+            "error": null,
+            "latency_ms": 4238.29,
+            "tokens": {
+              "prompt": 1597,
+              "completion": 37,
+              "total": 1634
+            }
+          },
+          {
+            "id": 7,
+            "question": "What is the average number of orders per customer?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 1350.99,
+            "tokens": {
+              "prompt": 1599,
+              "completion": 26,
+              "total": 1625
+            }
+          },
+          {
+            "id": 8,
+            "question": "How many discontinued products are there?",
+            "correct": true,
+            "row_count": 1,
+            "error": null,
+            "latency_ms": 5855.31,
+            "tokens": {
+              "prompt": 1596,
+              "completion": 10,
+              "total": 1606
+            }
+          },
+          {
+            "id": 9,
+            "question": "Show me the top 10 products by unit price",
+            "correct": true,
+            "row_count": 10,
+            "error": null,
+            "latency_ms": 1120.12,
+            "tokens": {
+              "prompt": 1599,
+              "completion": 16,
+              "total": 1615
+            }
+          },
+          {
+            "id": 10,
+            "question": "How many orders are there by shipping country?",
+            "correct": true,
+            "row_count": 21,
+            "error": null,
+            "latency_ms": 1184.04,
+            "tokens": {
+              "prompt": 1598,
+              "completion": 16,
+              "total": 1614
+            }
+          }
+        ],
+        "latency": {
+          "avg_ms": 2500.41,
+          "min_ms": 1120.12,
+          "max_ms": 5855.31,
+          "p95_ms": 4238.29,
+          "samples": 10
+        },
+        "token_stats": {
+          "total_tokens": 16180,
+          "prompt_tokens": 15984,
+          "completion_tokens": 196,
+          "total_llm_calls": 10,
+          "avg_tokens_per_question": 1618.0,
+          "avg_llm_calls_per_question": 1.0,
+          "estimated_cost_usd": 0.0829
+        }
+      }
+    ]
+  }
+}
