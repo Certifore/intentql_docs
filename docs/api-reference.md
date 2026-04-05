@@ -365,6 +365,8 @@ class QueryAgent:
 result = agent.ask("What are the top 10 countries by number of orders?")
 ```
 
+**Async frameworks:** the API is synchronous only. From FastAPI / Starlette, call `ask` via `asyncio.to_thread` or `run_in_executor` so the event loop is not blocked. See [Async web apps](getting-started.md#async-apps) in Getting Started. Native `AsyncEngine` / `async def ask` support may be added in a future release.
+
 Returns the same structure as `execute_query_plan` on success. On plan validation failure after all retries:
 
 ```python

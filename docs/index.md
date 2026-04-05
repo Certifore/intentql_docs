@@ -256,9 +256,10 @@ pip install intentql
 ```
 
 ```bash
-# With LLM extras and memory
-pip install "intentql[openai]"    # + openai SDK
-pip install chromadb          # for few-shot memory persistence
+# Optional: few-shot memory (ChromaDB)
+pip install "intentql[memory]"
+# Your LLM SDK (example — use any provider you wire into QueryAgent)
+pip install openai
 ```
 
 !!! tip "Installing from source"

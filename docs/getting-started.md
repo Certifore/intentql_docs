@@ -9,7 +9,7 @@ Get from zero to a running IntentQL query in under five minutes.
 - Python ≥ 3.10
 - A running Postgres database (local or remote)
 - Optional: an LLM API key (OpenAI, Gemini, Groq, etc.) — only needed if you want natural language input
-- Optional: `chromadb` — for persistent few-shot memory (recommended for production)
+- Optional: `pip install "intentql[memory]"` — persistent few-shot memory (recommended for production)
 
 ---
 
@@ -19,14 +19,16 @@ Get from zero to a running IntentQL query in under five minutes.
 pip install intentql
 ```
 
-Install with LLM extras if you plan to use natural language input:
+For natural-language queries with **persistent few-shot memory** (recommended in production), install the memory extra (includes ChromaDB):
 
 ```bash
-pip install "intentql[openai]"                   # OpenAI SDK
-pip install chromadb                        # few-shot memory (recommended)
-pip install langchain-openai                # LangChain + OpenAI
-pip install langchain-google-genai          # Gemini (free tier available)
-pip install langchain-groq                  # Groq (free, fast)
+pip install "intentql[memory]"
+```
+
+Optional extras for benchmarks or LangChain-based demos:
+
+```bash
+pip install "intentql[benchmark]"   # LangChain + OpenAI / Google — see benchmark/
 ```
 
 ??? note "Install from source"
@@ -78,6 +80,10 @@ intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/
 
 This sends each table's structure and sample values to the LLM, which generates concise descriptions for every table and column. The `--db` flag is optional but recommended — sample values give the LLM much better context (e.g., it can detect "values are in UPPER CASE").
 
+!!! info "`describe` is a strong starting point, not the whole story"
+    Auto-generated descriptions are comparable to bootstrapping prompts in other NL→SQL tools: they get you productive quickly, but they **cannot** know your business rules (e.g. “this column is a workflow code, not a trade name,” or “never join these two tables for customer-facing answers”).  
+    **Plan for one pass of domain review** on columns that are ambiguous, heavily overloaded, or safety-critical. That is the same kind of tuning you would do with hand-written prompts elsewhere — IntentQL just makes it structured and versionable in `schema.yaml`.
+
 Works with **any OpenAI-compatible provider** — no LLM SDK required:
 
 ```bash
@@ -88,8 +94,8 @@ intentql describe --api-key gsk_... --base-url https://api.groq.com/openai/v1 --
 intentql describe --api-key ollama --base-url http://localhost:11434/v1 --model llama3
 ```
 
-!!! tip "Review and refine"
-    The generated descriptions are a great starting point. For best results, review them and add domain-specific guidance. For example, you might add: "Do not filter on this column for trade keywords; use `description` instead."
+!!! tip "What to review first"
+    After `describe`, prioritize columns where mistakes are costly or common: IDs vs. names, status/category codes vs. free text, dates that mean “entered” vs. “completed,” and any column users ask about using everyday words that don’t match DB values. Add one or two sentences of explicit guidance there — that single pass often matters more than polishing every column.
 
 ??? example "Example: generated vs. hand-tuned description"
     **Generated:**
@@ -250,7 +256,37 @@ print(result["rows"])
 
 ---
 
-## 4. Validate Without a Database
+## 4. Async web apps { #async-apps }
+
+For **FastAPI**, **Starlette**, or any async web stack, keep in mind: IntentQL’s public API is **synchronous**. `QueryAgent.ask`, `execute_query_plan`, and `QueryPlanPlanner` use a standard SQLAlchemy **sync** `Engine` and block for the duration of each call (LLM + database work).
+
+There is **no** `async def ask()` or `AsyncEngine` support in the library yet. That may be added in a future release.
+
+**Recommended pattern today:** run the blocking call in a thread pool so your ASGI event loop stays responsive:
+
+```python
+import asyncio
+from functools import partial
+
+async def ask_natural_language(agent, question: str) -> dict:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        partial(agent.ask, question),
+    )
+```
+
+Python 3.9+ alternative:
+
+```python
+result = await asyncio.to_thread(agent.ask, question)
+```
+
+Reuse a **single** `QueryAgent` instance per process (or use a small pool) so the value index and memory are not rebuilt on every request.
+
+---
+
+## 5. Validate Without a Database
 
 Use `validate_query_plan` to check plans in unit tests, CI, or a plan preview endpoint — no database connection required:
 
@@ -276,6 +312,7 @@ else:
 |---|---|
 | Understand joins, rollup, relative dates | [QueryPlan Reference](query-plan-reference.md) |
 | Use a free LLM (Gemini, Groq) | [LLM Integration](llm-integration.md) |
+| Use IntentQL from FastAPI / async code | [§ Async web apps](#async-apps) (above) |
 | Learn the full compilation pipeline | [Core Concepts](concepts.md) |
 | See every public function | [API Reference](api-reference.md) |
 | Handle errors in production | [Exception Reference](exceptions.md) |

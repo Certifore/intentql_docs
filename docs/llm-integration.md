@@ -55,7 +55,8 @@ You can also import and use adapters directly for fine-grained control.
     **Best for:** Production workloads. `gpt-4o-mini` offers the best quality/cost ratio.
 
     ```bash
-    pip install "intentql[openai]"
+    pip install intentql openai
+    # Optional: pip install "intentql[memory]"  # few-shot memory (ChromaDB)
     ```
 
     ```python
