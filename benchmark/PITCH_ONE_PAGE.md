@@ -1,4 +1,4 @@
-# QCE — Query Compiler Engine
+# IntentQL
 ### Safe, auditable natural language queries for any Postgres database.
 
 ---
@@ -17,12 +17,12 @@ This is not a GPT-4 problem. It is an architectural problem.
 
 ---
 
-## What QCE does
+## What IntentQL does
 
-QCE is a compiler layer that sits between your LLM and your database.
+IntentQL is a compiler layer that sits between your LLM and your database.
 
 ```
-User question → LLM → QueryPlan JSON → QCE Compiler → Parameterized SQL → Database
+User question → LLM → QueryPlan JSON → IntentQL Compiler → Parameterized SQL → Database
 ```
 
 The LLM maps the question to a structured JSON object.
@@ -36,7 +36,7 @@ The compiler enforces your schema, your access rules, and your data policies —
 
 Tested head-to-head against GPT-4 Direct and LangChain on an open, reproducible database.
 
-| | QCE | GPT-4 Direct | LangChain |
+| | IntentQL | GPT-4 Direct | LangChain |
 |---|---|---|---|
 | Unauthorized schema access blocked | **50/50** | 48/50 | 21/50 |
 | Hallucinated columns rejected | **15/15** | 13/15 | 4/15 |
@@ -44,28 +44,28 @@ Tested head-to-head against GPT-4 Direct and LangChain on an open, reproducible 
 
 GPT-4 Direct answered the same questions correctly — on clean inputs.
 The difference appears on injection attempts, hallucinated columns, and model updates.
-QCE catches those in the compiler. GPT-4 Direct does not.
+IntentQL catches those in the compiler. GPT-4 Direct does not.
 
 ---
 
 ## You don't need an expensive model
 
-QCE on a cheap model (gpt-4o-mini) outperforms GPT-4 Direct on an expensive model on every safety metric — and costs 4x less.
+IntentQL on a cheap model (gpt-4o-mini) outperforms GPT-4 Direct on an expensive model on every safety metric — and costs 4x less.
 
-| | QCE + gpt-4o-mini | GPT-4 Direct + gpt-4o |
+| | IntentQL + gpt-4o-mini | GPT-4 Direct + gpt-4o |
 |---|---|---|
 | Hallucinated columns rejected | **15/15** | 13/15 |
 | Unauthorized access blocked | **50/50** | 48/50 |
 | Cost per 10 questions | **$0.019** | $0.083 |
 
 Making GPT-4 Direct cheaper makes it less safe.
-Making QCE cheaper keeps it exactly as safe — safety is in the compiler, not the model.
+Making IntentQL cheaper keeps it exactly as safe — safety is in the compiler, not the model.
 
 ---
 
 ## Who this is for
 
-- **Regulated environments** — healthcare, finance, government. Wrong answers and unauthorized data access are liability. QCE's allowlist is a documented, auditable policy you can show to an auditor.
+- **Regulated environments** — healthcare, finance, government. Wrong answers and unauthorized data access are liability. IntentQL's allowlist is a documented, auditable policy you can show to an auditor.
 - **Non-technical users on production data** — CFOs and directors who need consistent numbers, not "the model answered differently on Tuesday."
 - **Multi-tenant analytics products** — tenant isolation enforced in code, not a system prompt every engineer can accidentally edit.
 - **Teams already burned by LangChain** — 8 LLM calls per question, rate limits, 4/15 hallucination rejection, unverified answers.
@@ -76,7 +76,7 @@ Making QCE cheaper keeps it exactly as safe — safety is in the compiler, not t
 
 OpenAI · Anthropic · Google Gemini · Azure OpenAI · self-hosted Llama / Mistral.
 For organizations running on-premise LLMs, marginal cost is zero.
-Any Postgres schema — define your allowlist once in a YAML file, QCE enforces it on every query.
+Any Postgres schema — define your allowlist once in a YAML file, IntentQL enforces it on every query.
 
 ---
 

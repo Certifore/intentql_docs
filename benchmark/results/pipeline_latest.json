@@ -1,9 +1,9 @@
 {
   "run_at": "2026-03-27T19:06:31.829186+00:00",
-  "spec_used": "/home/alexander/git_repos/dsl_compiler/config/queryplan_spec_generated.yaml",
+  "spec_used": "/home/alexander/git_repos/intentql/config/queryplan_spec_generated.yaml",
   "results": [
     {
-      "tool": "QCE (full pipeline, gemini/gemini-2.0-flash)",
+      "tool": "IntentQL (full pipeline, gemini/gemini-2.0-flash)",
       "model": "gemini-2.0-flash",
       "score": "0/10",
       "correct": 0,

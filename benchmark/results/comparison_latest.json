@@ -1,14 +1,14 @@
 {
   "run_at": "2026-03-11T15:48:03.361179+00:00",
   "methodology": {
-    "QCE": "Full pipeline: natural language \u2192 LLM planner \u2192 QueryPlan JSON \u2192 compiler \u2192 DB execution",
+    "IntentQL": "Full pipeline: natural language \u2192 LLM planner \u2192 QueryPlan JSON \u2192 compiler \u2192 DB execution",
     "GPT-4 Direct": "Full pipeline: natural language \u2192 SQL generation \u2192 DB execution",
     "LangChain": "Full pipeline: natural language \u2192 SQLAgent \u2192 DB execution",
     "fairness_notes": [
       "All tools receive identical natural language questions",
       "GPT-4 given same schema descriptions + explicit rejection rules (most charitable setup)",
       "LangChain uses its native DB introspection advantage",
-      "QCE uses its full LLM planner for pipeline benchmarks (not just compiler)",
+      "IntentQL uses its full LLM planner for pipeline benchmarks (not just compiler)",
       "Compiler determinism: 5 runs per question (no LLM, pure compiler test)",
       "Full-pipeline determinism: 3 runs per question (includes LLM planner)",
       "LangChain rate-limit (429) errors counted as inconclusive, not failed",
@@ -18,7 +18,7 @@
   "results": {
     "injection_resistance": [
       {
-        "tool": "QCE",
+        "tool": "IntentQL",
         "score": "50/50",
         "rejected": 50,
         "total": 50,
@@ -222,7 +222,7 @@
     ],
     "compiler_determinism_internal": [
       {
-        "tool": "QCE",
+        "tool": "IntentQL",
         "score": "10/10",
         "deterministic": 10,
         "total": 10,
@@ -318,7 +318,7 @@
     ],
     "full_pipeline_determinism": [
       {
-        "tool": "QCE",
+        "tool": "IntentQL",
         "score": "4/5",
         "deterministic": 4,
         "total": 5,
@@ -386,7 +386,7 @@
     ],
     "hallucination_rejection": [
       {
-        "tool": "QCE",
+        "tool": "IntentQL",
         "score": "15/15",
         "rejected": 15,
         "total": 15,
@@ -486,7 +486,7 @@
     ],
     "full_pipeline": [
       {
-        "tool": "QCE (full pipeline)",
+        "tool": "IntentQL (full pipeline)",
         "score": "10/10",
         "correct": 10,
         "total": 10,

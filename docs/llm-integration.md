@@ -1,11 +1,11 @@
 # LLM Integration
 
-QCE is **LLM-agnostic**. One factory function — `make_llm_client()` — adapts any model object automatically. You are never locked into a specific provider.
+IntentQL is **LLM-agnostic**. One factory function — `make_llm_client()` — adapts any model object automatically. You are never locked into a specific provider.
 
 <div class="qce-path-grid" markdown>
 <a class="qce-path-card" href="getting-started/">
   <span class="qce-path-card__kicker">Step 1</span>
-  <span class="qce-path-card__title">Set Up QCE</span>
+  <span class="qce-path-card__title">Set Up IntentQL</span>
   <span class="qce-path-card__desc">Install package, define `schema.yaml`, and generate `queryplan_spec_generated.yaml`.</span>
   <span class="qce-path-card__cta">Go to getting started -></span>
 </a>
@@ -27,7 +27,7 @@ QCE is **LLM-agnostic**. One factory function — `make_llm_client()` — adapts
 
 ## How Adapter Detection Works
 
-When you pass an LLM object to `QueryPlanPlanner` or `QueryAgent`, QCE calls `make_llm_client(obj)` internally and selects the right adapter:
+When you pass an LLM object to `QueryPlanPlanner` or `QueryAgent`, IntentQL calls `make_llm_client(obj)` internally and selects the right adapter:
 
 ```
 make_llm_client(obj)
@@ -55,14 +55,14 @@ You can also import and use adapters directly for fine-grained control.
     **Best for:** Production workloads. `gpt-4o-mini` offers the best quality/cost ratio.
 
     ```bash
-    pip install "qce[openai]"
+    pip install "intentql[openai]"
     ```
 
     ```python
     from openai import OpenAI
-    import dsl_compiler as qce
+    import intentql
 
-    planner = qce.QueryPlanPlanner(
+    planner = intentql.QueryPlanPlanner(
         llm=OpenAI(api_key="sk-..."),
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -74,10 +74,10 @@ You can also import and use adapters directly for fine-grained control.
     **Specify a different model:**
 
     ```python
-    from dsl_compiler.llm_adapters import OpenAIResponsesJSONAdapter
+    from intentql.llm_adapters import OpenAIResponsesJSONAdapter
 
     adapter = OpenAIResponsesJSONAdapter(OpenAI(api_key="sk-..."), model="gpt-4o")
-    planner = qce.QueryPlanPlanner(llm=adapter, ...)
+    planner = intentql.QueryPlanPlanner(llm=adapter, ...)
     ```
 
 === "Google Gemini (Free)"
@@ -92,9 +92,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_google_genai import ChatGoogleGenerativeAI
-    import dsl_compiler as qce
+    import intentql
 
-    planner = qce.QueryPlanPlanner(
+    planner = intentql.QueryPlanPlanner(
         llm=ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",
             google_api_key="AIza...",
@@ -117,9 +117,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_groq import ChatGroq
-    import dsl_compiler as qce
+    import intentql
 
-    planner = qce.QueryPlanPlanner(
+    planner = intentql.QueryPlanPlanner(
         llm=ChatGroq(
             model="llama-3.3-70b-versatile",
             api_key="gsk_...",
@@ -140,9 +140,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_openai import ChatOpenAI
-    import dsl_compiler as qce
+    import intentql
 
-    planner = qce.QueryPlanPlanner(
+    planner = intentql.QueryPlanPlanner(
         llm=ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key="sk-..."),
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -163,9 +163,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_ollama import ChatOllama
-    import dsl_compiler as qce
+    import intentql
 
-    planner = qce.QueryPlanPlanner(
+    planner = intentql.QueryPlanPlanner(
         llm=ChatOllama(model="qwen2.5:7b"),
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -192,7 +192,7 @@ You can also import and use adapters directly for fine-grained control.
     ```python
     import anthropic
     import json
-    import dsl_compiler as qce
+    import intentql
 
     client = anthropic.Anthropic(api_key="sk-ant-...")
 
@@ -207,7 +207,7 @@ You can also import and use adapters directly for fine-grained control.
         )
         return json.loads(resp.content[0].text)
 
-    planner = qce.QueryPlanPlanner(
+    planner = intentql.QueryPlanPlanner(
         llm=claude_generate,
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -221,7 +221,7 @@ You can also import and use adapters directly for fine-grained control.
 `QueryPlanPlanner` handles the full LLM → QueryPlan cycle:
 
 ```python
-planner = qce.QueryPlanPlanner(
+planner = intentql.QueryPlanPlanner(
     llm=your_llm,
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
@@ -279,7 +279,7 @@ print(plan["meta"])
 The highest-level API — combines the intent pipeline + compiler + executor in one call. On initialization, it builds a value index from your database and connects to ChromaDB for few-shot memory.
 
 ```python
-agent = qce.QueryAgent(
+agent = intentql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
@@ -355,7 +355,7 @@ The value index and few-shot examples are injected dynamically — they're not p
 In the legacy pipeline, the LLM receives three messages:
 
 ```
-[system]  QCE system instructions
+[system]  IntentQL system instructions
           "Produce ONLY valid JSON. Never write SQL. Use logical names only..."
 
 [system]  Your spec YAML + schema YAML
@@ -367,7 +367,7 @@ In the legacy pipeline, the LLM receives three messages:
 To inspect the exact legacy prompt:
 
 ```python
-from dsl_compiler.api.spec_api import get_queryplan_instructions
+from intentql.api.spec_api import get_queryplan_instructions
 
 prompt = get_queryplan_instructions(
     schema_path="config/schema.yaml",

@@ -2,22 +2,22 @@
 
 <div class="qce-hero" markdown>
 
-<div class="qce-hero__eyebrow">Query Compiler Engine</div>
+<div class="qce-hero__eyebrow">IntentQL</div>
 
 <h1 class="qce-hero__title">LLM-powered queries.<br>Deterministic SQL. Zero trust.</h1>
 
 <p class="qce-hero__subtitle">
-QCE extracts a lightweight <strong>QueryIntent</strong> from natural language, normalizes it
+IntentQL extracts a lightweight <strong>QueryIntent</strong> from natural language, normalizes it
 deterministically, validates it against real database values, and compiles it into
 parameterized Postgres SQL — enforcing your schema allowlist, neutralizing injections,
 and delivering <strong>consistent results</strong> across rephrasings.
-Let your LLM own <em>intent</em>. Let QCE own <em>everything else</em>.
+Let your LLM own <em>intent</em>. Let IntentQL own <em>everything else</em>.
 </p>
 
 <div class="qce-hero__actions">
   <a href="getting-started/" class="qce-btn qce-btn--primary">→ Get Started</a>
   <a href="concepts/" class="qce-btn qce-btn--outline">How it works</a>
-  <a href="https://github.com/Certifore/dsl_compiler" class="qce-btn qce-btn--outline">GitHub</a>
+  <a href="https://github.com/Certifore/intentql" class="qce-btn qce-btn--outline">GitHub</a>
 </div>
 
 <div class="qce-badges">
@@ -57,7 +57,7 @@ Every production AI data feature eventually hits the same walls:
 
 <div class="qce-comparison" markdown>
 
-|  | Raw LLM SQL | **QCE** |
+|  | Raw LLM SQL | **IntentQL** |
 |---|:---:|:---:|
 | SQL injection via prompt | <span class="cross">No: never safe</span> | <span class="check">Yes: bind params always</span> |
 | Hallucinated table names | <span class="cross">No: silent wrong answer risk</span> | <span class="check">Yes: hard error, allowlist enforced</span> |
@@ -69,7 +69,7 @@ Every production AI data feature eventually hits the same walls:
 
 </div>
 
-QCE solves this with a **two-stage architecture**. The LLM extracts a lightweight `QueryIntent` — no SQL, no table names, no structural decisions. Deterministic code normalizes the intent, validates it against real database values, and builds a correct `QueryPlan` that compiles into safe, parameterized SQL.
+IntentQL solves this with a **two-stage architecture**. The LLM extracts a lightweight `QueryIntent` — no SQL, no table names, no structural decisions. Deterministic code normalizes the intent, validates it against real database values, and builds a correct `QueryPlan` that compiles into safe, parameterized SQL.
 
 ---
 
@@ -110,7 +110,7 @@ QCE solves this with a **two-stage architecture**. The LLM extracts a lightweigh
        │
        ▼
   ┌────────────────────────────────────────────────────┐
-  │  QCE Compiler                                      │
+  │  IntentQL Compiler                                      │
   │  · Validates against schema.yaml allowlist          │
   │  · All values → bind parameters                    │
   │  · Auto-injects JOIN paths via BFS                 │
@@ -133,11 +133,11 @@ QCE solves this with a **two-stage architecture**. The LLM extracts a lightweigh
     ```python
     from sqlalchemy import create_engine
     from openai import OpenAI
-    import dsl_compiler as qce
+    import intentql
 
     engine = create_engine("postgresql+psycopg2://user:pass@host/db")
 
-    agent = qce.QueryAgent(
+    agent = intentql.QueryAgent(
         engine=engine,
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -153,11 +153,11 @@ QCE solves this with a **two-stage architecture**. The LLM extracts a lightweigh
 
     ```python
     from sqlalchemy import create_engine
-    import dsl_compiler as qce
+    import intentql
 
     engine = create_engine("postgresql+psycopg2://user:pass@host/db")
 
-    result = qce.execute_query_plan(
+    result = intentql.execute_query_plan(
         engine=engine,
         schema_path="config/schema.yaml",
         query_plan={
@@ -181,9 +181,9 @@ QCE solves this with a **two-stage architecture**. The LLM extracts a lightweigh
 === "Validate offline"
 
     ```python
-    import dsl_compiler as qce
+    import intentql
 
-    errors = qce.validate_query_plan(
+    errors = intentql.validate_query_plan(
         query_plan=plan,
         schema_path="config/schema.yaml",
     )
@@ -208,7 +208,7 @@ QCE solves this with a **two-stage architecture**. The LLM extracts a lightweigh
 <div class="qce-feature" markdown>
 <div class="qce-feature__icon">Accuracy</div>
 <p class="qce-feature__title">Value Index Grounding</p>
-<p class="qce-feature__desc">At startup, QCE indexes real database values and injects them as pick-lists into the LLM prompt. The LLM picks from actual data — no more hallucinated filter values.</p>
+<p class="qce-feature__desc">At startup, IntentQL indexes real database values and injects them as pick-lists into the LLM prompt. The LLM picks from actual data — no more hallucinated filter values.</p>
 </div>
 <div class="qce-feature" markdown>
 <div class="qce-feature__icon">Security</div>
@@ -237,19 +237,19 @@ QCE solves this with a **two-stage architecture**. The LLM extracts a lightweigh
 ## Install
 
 ```bash
-pip install qce
+pip install intentql
 ```
 
 ```bash
 # With LLM extras and memory
-pip install "qce[openai]"    # + openai SDK
+pip install "intentql[openai]"    # + openai SDK
 pip install chromadb          # for few-shot memory persistence
 ```
 
 !!! tip "Installing from source"
     ```bash
-    git clone https://github.com/Certifore/dsl_compiler
-    cd dsl_compiler
+    git clone https://github.com/Certifore/intentql
+    cd intentql
     pip install -e ".[dev]"
     ```
 
@@ -261,7 +261,7 @@ pip install chromadb          # for few-shot memory persistence
 <a class="qce-path-card" href="getting-started/">
   <span class="qce-path-card__kicker">Quickstart</span>
   <span class="qce-path-card__title">Get Started in 5 Minutes</span>
-  <span class="qce-path-card__desc">Install QCE, define your schema, and run your first query against a live database.</span>
+  <span class="qce-path-card__desc">Install IntentQL, define your schema, and run your first query against a live database.</span>
   <span class="qce-path-card__cta">Read guide →</span>
 </a>
 <a class="qce-path-card" href="concepts/">

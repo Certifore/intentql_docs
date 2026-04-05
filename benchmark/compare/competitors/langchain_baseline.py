@@ -1,7 +1,7 @@
 """
 LangChain SQLDatabaseChain baseline competitor.
 Given a natural language question, generates and executes SQL via LangChain.
-Used to compare against QCE on injection resistance and determinism.
+Used to compare against IntentQL on injection resistance and determinism.
 """
 from __future__ import annotations
 

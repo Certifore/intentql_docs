@@ -1,10 +1,10 @@
-# QCE Documentation
+# IntentQL Documentation
 
-Documentation, benchmarks, and guides for [QCE — Query Compiler Engine](https://github.com/Certifore/dsl_compiler).
+Documentation, benchmarks, and guides for [IntentQL](https://github.com/Certifore/intentql).
 
-## What is QCE?
+## What is IntentQL?
 
-QCE is a Python library that turns natural language questions into deterministic, parameterized Postgres SQL. Instead of letting an LLM generate free-form SQL, QCE uses a **two-stage architecture**:
+IntentQL is a Python library that turns natural language questions into deterministic, parameterized Postgres SQL. Instead of letting an LLM generate free-form SQL, IntentQL uses a **two-stage architecture**:
 
 1. **LLM extracts a lightweight QueryIntent** — guided by real database values and few-shot examples from past successful queries
 2. **Deterministic code builds a QueryPlan** — normalizing the intent, validating values, and compiling to safe, parameterized SQL

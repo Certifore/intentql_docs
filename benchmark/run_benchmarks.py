@@ -1,5 +1,5 @@
 """
-QCE Benchmark Runner
+IntentQL Benchmark Runner
 
 Usage:
     python3 benchmark/run_benchmarks.py
@@ -49,7 +49,7 @@ def _print_result(result: dict) -> None:
 
 def main() -> None:
     print("=" * 50)
-    print("  QCE Benchmark Suite")
+    print("  IntentQL Benchmark Suite")
     print(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     print("=" * 50)
 

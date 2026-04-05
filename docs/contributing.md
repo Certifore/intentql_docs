@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to QCE!
+Thanks for your interest in contributing to IntentQL!
 
 !!! tip "New to the codebase?"
     Read [Core Concepts](concepts.md) first to understand the pipeline, then come back here. The best first contribution is usually a new operator or aggregation — both require only a few targeted edits.
@@ -12,8 +12,8 @@ Thanks for your interest in contributing to QCE!
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Certifore/dsl_compiler
-cd dsl_compiler
+git clone https://github.com/Certifore/intentql
+cd intentql
 ```
 
 ### 2. Create a Virtual Environment
@@ -30,7 +30,7 @@ source env_dsl/bin/activate   # Linux/macOS
 pip install -e ".[dev]"
 ```
 
-This installs `dsl_compiler`/`qce` in editable mode (source changes are reflected immediately), plus `ruff`, `build`, and `twine`.
+This installs `intentql` in editable mode (source changes are reflected immediately), plus `ruff`, `build`, and `twine`.
 
 ### 4. Install LLM Extras (optional)
 
@@ -46,7 +46,7 @@ pip install langchain-ollama            # Ollama (local models)
 ## Project Structure
 
 ```
-dsl_compiler/
+intentql/
   __init__.py           # public API — everything exported from here
   compiler.py           # core SQL compiler: logical → physical, values → bind params
   executor.py           # executes compiled SQL against Postgres
@@ -73,7 +73,7 @@ test/
   test_main.py          # unit and integration tests
   regression_test/      # 28-question Northwind regression suite
 
-benchmark/              # benchmarks: QCE vs LangChain vs GPT-4 Direct
+benchmark/              # benchmarks: IntentQL vs LangChain vs GPT-4 Direct
 docs/                   # this documentation site (MkDocs)
 ```
 
@@ -108,12 +108,12 @@ python test/test_main.py check    # compare to saved baseline (CI)
 
 ## Linting and Formatting
 
-QCE uses [Ruff](https://docs.astral.sh/ruff/):
+IntentQL uses [Ruff](https://docs.astral.sh/ruff/):
 
 ```bash
-ruff check dsl_compiler/         # check for issues
-ruff check --fix dsl_compiler/   # auto-fix
-ruff format dsl_compiler/        # format
+ruff check intentql/         # check for issues
+ruff check --fix intentql/   # auto-fix
+ruff format intentql/        # format
 ```
 
 All configuration lives in `pyproject.toml`.
@@ -125,7 +125,7 @@ All configuration lives in `pyproject.toml`.
 After any change to `schema.yaml`:
 
 ```bash
-python -m dsl_compiler.spec_builder \
+python -m intentql.spec_builder \
     --schema config/schema.yaml \
     --output config/queryplan_spec_generated.yaml
 ```
@@ -168,7 +168,7 @@ python -m dsl_compiler.spec_builder \
 3. **Run checks:**
 
     ```bash
-    ruff check dsl_compiler/ && python test/test_main.py lint
+    ruff check intentql/ && python test/test_main.py lint
     ```
 
 4. **Commit** with a clear message:

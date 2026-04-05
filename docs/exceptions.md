@@ -1,9 +1,9 @@
 # Exception Reference
 
-QCE uses a structured exception hierarchy. All exceptions inherit from `DSLCompilerError`, making it easy to catch all library errors in one place or handle each type separately.
+IntentQL uses a structured exception hierarchy. All exceptions inherit from `DSLCompilerError`, making it easy to catch all library errors in one place or handle each type separately.
 
 ```python
-from dsl_compiler import (
+from intentql import (
     DSLCompilerError,
     SchemaError,
     QueryPlanError,
@@ -31,13 +31,13 @@ Exception
 
 ## `DSLCompilerError`
 
-Base class for all QCE exceptions. Catch this to handle any library error in one place:
+Base class for all IntentQL exceptions. Catch this to handle any library error in one place:
 
 ```python
 try:
-    result = qce.execute_query_plan(...)
-except qce.DSLCompilerError as e:
-    print(f"QCE error: {e}")
+    result = intentql.execute_query_plan(...)
+except intentql.DSLCompilerError as e:
+    print(f"IntentQL error: {e}")
 ```
 
 ---
@@ -56,8 +56,8 @@ Raised when `schema.yaml` is missing, malformed, or contains invalid configurati
 
 ```python
 try:
-    schema = qce.load_and_validate_schema("config/schema.yaml")
-except qce.SchemaError as e:
+    schema = intentql.load_and_validate_schema("config/schema.yaml")
+except intentql.SchemaError as e:
     print(f"Fix your schema.yaml: {e}")
 ```
 
@@ -84,7 +84,7 @@ except qce.SchemaError as e:
 
 Raised when a QueryPlan is structurally or semantically invalid. This is the most common exception during development.
 
-`execute_query_plan` and the low-level `Compiler` now raise the same public `dsl_compiler.exceptions.QueryPlanError` class, so application code can catch one type consistently.
+`execute_query_plan` and the low-level `Compiler` now raise the same public `intentql.exceptions.QueryPlanError` class, so application code can catch one type consistently.
 
 **Constructor:**
 
@@ -128,19 +128,19 @@ error.to_dict()
 ```python
 try:
     sql, params = Compiler(schema).compile({"dataset": "nonexistent", ...})
-except qce.QueryPlanError as e:
+except intentql.QueryPlanError as e:
     print(e.code)       # "INVALID_PLAN"
     print(e.path)       # "$.dataset"
     print(e.message)    # "Unknown dataset: nonexistent"
 ```
 
 !!! tip "Designed for LLM retry feedback"
-    `QueryPlanError` is serializable by design. When using `plan_with_retry`, QCE feeds the error dict back to the LLM automatically. In a custom retry loop:
+    `QueryPlanError` is serializable by design. When using `plan_with_retry`, IntentQL feeds the error dict back to the LLM automatically. In a custom retry loop:
 
     ```python
     try:
         sql, params = compiler.compile(plan)
-    except qce.QueryPlanError as e:
+    except intentql.QueryPlanError as e:
         error_context = e.to_dict()
         # Append error_context to your next LLM message
     ```
@@ -212,8 +212,8 @@ DatabaseExecutionError(
 
 ```python
 try:
-    result = qce.execute_query_plan(engine=engine, ..., raise_on_error=True)
-except qce.DatabaseExecutionError as e:
+    result = intentql.execute_query_plan(engine=engine, ..., raise_on_error=True)
+except intentql.DatabaseExecutionError as e:
     print(f"DB error: {e.message}")
     print(f"SQL: {e.sql}")
     print(f"Caused by: {e.original}")
@@ -241,30 +241,30 @@ QueryCostError(message: str, *, estimated_cost: float | None = None)
 Recommended pattern for a web API endpoint using `raise_on_error=True`:
 
 ```python
-import dsl_compiler as qce
+import intentql
 
 def handle_question(question: str) -> dict:
     try:
         plan = planner.plan_with_retry(question)
-        return qce.execute_query_plan(
+        return intentql.execute_query_plan(
             engine=engine,
             schema_path="config/schema.yaml",
             query_plan=plan,
             raise_on_error=True,
         )
 
-    except qce.QueryPlanError as e:
+    except intentql.QueryPlanError as e:
         # LLM generated an invalid plan; all retries exhausted
         # Safe to surface the error code to the client
         return {"error": "invalid_query", "detail": e.message, "code": e.code}
 
-    except qce.DatabaseExecutionError as e:
+    except intentql.DatabaseExecutionError as e:
         # Valid SQL but DB rejected it (timeout, permissions, type error)
         # Log e.sql for debugging; do NOT surface raw SQL to end users
         logger.error("DB execution failed", sql=e.sql, cause=str(e.original))
         return {"error": "execution_failed", "detail": "Query failed. Please try again."}
 
-    except qce.SchemaError as e:
+    except intentql.SchemaError as e:
         # Configuration error — should never reach production if schema is tested at startup
         logger.critical("Schema configuration error", error=str(e))
         return {"error": "configuration_error", "detail": "Internal error"}

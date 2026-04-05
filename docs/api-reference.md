@@ -1,12 +1,12 @@
 # API Reference
 
-All public symbols are importable directly from `dsl_compiler`:
+All public symbols are importable directly from `intentql`:
 
 ```python
-import dsl_compiler as qce
+import intentql
 
 # or decompose individually:
-from dsl_compiler import execute_query_plan, QueryPlanPlanner, QueryAgent
+from intentql import execute_query_plan, QueryPlanPlanner, QueryAgent
 ```
 
 ---
@@ -92,11 +92,11 @@ def execute_query_plan(
 
 ```python
 from sqlalchemy import create_engine
-import dsl_compiler as qce
+import intentql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-result = qce.execute_query_plan(
+result = intentql.execute_query_plan(
     engine=engine,
     schema_path="config/schema.yaml",
     query_plan={
@@ -126,7 +126,7 @@ def validate_query_plan(
 **Returns:** A list of error strings. Empty list means valid.
 
 ```python
-errors = qce.validate_query_plan(plan, "config/schema.yaml")
+errors = intentql.validate_query_plan(plan, "config/schema.yaml")
 if errors:
     for e in errors:
         print(e)
@@ -152,7 +152,7 @@ def load_and_validate_schema(schema_path: str) -> Dict[str, Any]
 **Raises:** `SchemaError` on fatal issues. Prints warnings to stdout for non-fatal issues.
 
 ```python
-schema = qce.load_and_validate_schema("config/schema.yaml")
+schema = intentql.load_and_validate_schema("config/schema.yaml")
 ```
 
 ---
@@ -290,10 +290,10 @@ When semantic lint still fails (and `enforce_semantic_lint` is True):
 
 ## `IntentPlanner`
 
-Two-stage planner: LLM intent extraction → deterministic plan builder. This is the core of QCE's consistency pipeline.
+Two-stage planner: LLM intent extraction → deterministic plan builder. This is the core of IntentQL's consistency pipeline.
 
 ```python
-from dsl_compiler.intent_planner import IntentPlanner
+from intentql.intent_planner import IntentPlanner
 
 class IntentPlanner:
     def __init__(
@@ -354,7 +354,7 @@ plan["meta"] == {
 ChromaDB-backed storage of (question, intent) pairs for few-shot prompting.
 
 ```python
-from dsl_compiler.intent_memory import IntentMemory
+from intentql.intent_memory import IntentMemory
 
 class IntentMemory:
     def __init__(
@@ -369,7 +369,7 @@ class IntentMemory:
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `persist_directory` | `str` | `~/.dsl_compiler/intent_memory` | ChromaDB storage directory |
+| `persist_directory` | `str` | `~/.intentql/intent_memory` | ChromaDB storage directory |
 | `collection_name` | `str` | `"intent_memory"` | ChromaDB collection name |
 | `max_examples` | `int` | `500` | Maximum stored examples (oldest evicted) |
 
@@ -407,7 +407,7 @@ prompt_section = memory.format_few_shot_examples(examples)
 Query the database for distinct values of categorical columns.
 
 ```python
-from dsl_compiler.value_index import build_value_index
+from intentql.value_index import build_value_index
 
 def build_value_index(
     engine: Engine,
@@ -439,7 +439,7 @@ Built once at `QueryAgent` startup, shared across all sessions. Related function
 Deterministic canonicalization of LLM-extracted intents.
 
 ```python
-from dsl_compiler.intent_normalize import normalize_intent
+from intentql.intent_normalize import normalize_intent
 
 def normalize_intent(
     intent: Dict[str, Any],
@@ -473,7 +473,7 @@ def validate_query_plan_dict(
 **Returns:** `(parsed_plan or None, list of ValidationErrorItem)`
 
 ```python
-from dsl_compiler import validate_query_plan_dict
+from intentql import validate_query_plan_dict
 
 plan, errors = validate_query_plan_dict(plan_dict, "config/schema.yaml")
 for e in errors:
@@ -494,7 +494,7 @@ for e in errors:
 The Pydantic model for type-safe plan construction:
 
 ```python
-from dsl_compiler import QueryPlan
+from intentql import QueryPlan
 
 plan = QueryPlan(
     dataset="orders",
@@ -502,7 +502,7 @@ plan = QueryPlan(
     metrics=[{"agg": "count", "field": "*", "alias": "n"}],
 )
 
-result = qce.execute_query_plan(
+result = intentql.execute_query_plan(
     engine=engine,
     schema_path="config/schema.yaml",
     query_plan=plan.model_dump(),
@@ -516,7 +516,7 @@ result = qce.execute_query_plan(
 Returns the JSON Schema for the QueryPlan model. Pass this to any LLM that supports structured output natively:
 
 ```python
-from dsl_compiler import queryplan_json_schema
+from intentql import queryplan_json_schema
 
 schema = queryplan_json_schema()
 # {"type": "object", "properties": {...}, ...}
@@ -537,7 +537,7 @@ def semantic_lint(
 ```
 
 ```python
-from dsl_compiler import semantic_lint
+from intentql import semantic_lint
 
 errors = semantic_lint(
     question="Top 10 customers by revenue",
@@ -555,7 +555,7 @@ for e in errors:
 Lower-level join utilities (`auto_inject_joins`, `build_link_graph`, `shortest_join_path`) for direct pipeline control:
 
 ```python
-from dsl_compiler import auto_inject_joins, build_link_graph, shortest_join_path
+from intentql import auto_inject_joins, build_link_graph, shortest_join_path
 
 # Build the adjacency graph from schema links
 graph = build_link_graph(schema)
@@ -575,7 +575,7 @@ enriched_plan = auto_inject_joins(plan_dict, schema)
 Programmatic spec builder (equivalent to the CLI command):
 
 ```python
-from dsl_compiler import build_spec, write_spec
+from intentql import build_spec, write_spec
 
 spec = build_spec("config/schema.yaml")          # returns dict
 write_spec(spec, "config/queryplan_spec_generated.yaml")
@@ -588,7 +588,7 @@ write_spec(spec, "config/queryplan_spec_generated.yaml")
 Build the full LLM system prompt string from spec + schema:
 
 ```python
-from dsl_compiler.api.spec_api import get_queryplan_instructions
+from intentql.api.spec_api import get_queryplan_instructions
 
 prompt = get_queryplan_instructions(
     schema_path="config/schema.yaml",
@@ -606,9 +606,9 @@ Useful when building your own message lists instead of using `QueryPlanPlanner`.
 Direct access to the compiler if you manage the pipeline yourself:
 
 ```python
-from dsl_compiler.compiler import Compiler
+from intentql.compiler import Compiler
 
-schema = qce.load_and_validate_schema("config/schema.yaml")
+schema = intentql.load_and_validate_schema("config/schema.yaml")
 compiler = Compiler(
     schema,
     default_limit=100,

@@ -6,8 +6,8 @@ from typing import Any, Dict, List
 
 import yaml
 
-from dsl_compiler.compiler import Compiler
-from dsl_compiler.exceptions import QueryPlanError, SchemaError
+from intentql.compiler import Compiler
+from intentql.exceptions import QueryPlanError, SchemaError
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "adversarial_inputs.json"
 SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "schema.yaml"

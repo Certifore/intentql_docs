@@ -1,6 +1,6 @@
 # Getting Started
 
-Get from zero to a running QCE query in under five minutes.
+Get from zero to a running IntentQL query in under five minutes.
 
 ---
 
@@ -16,13 +16,13 @@ Get from zero to a running QCE query in under five minutes.
 ## 1. Install
 
 ```bash
-pip install qce
+pip install intentql
 ```
 
 Install with LLM extras if you plan to use natural language input:
 
 ```bash
-pip install "qce[openai]"                   # OpenAI SDK
+pip install "intentql[openai]"                   # OpenAI SDK
 pip install chromadb                        # few-shot memory (recommended)
 pip install langchain-openai                # LangChain + OpenAI
 pip install langchain-google-genai          # Gemini (free tier available)
@@ -31,8 +31,8 @@ pip install langchain-groq                  # Groq (free, fast)
 
 ??? note "Install from source"
     ```bash
-    git clone https://github.com/Certifore/dsl_compiler
-    cd dsl_compiler
+    git clone https://github.com/Certifore/intentql
+    cd intentql
     pip install -e ".[dev]"
     ```
 
@@ -40,7 +40,7 @@ pip install langchain-groq                  # Groq (free, fast)
 
 ## 2. Define Your Schema
 
-`schema.yaml` is the **allowlist** that tells QCE which tables and columns exist. The LLM only sees logical names; the compiler maps them to physical Postgres identifiers.
+`schema.yaml` is the **allowlist** that tells IntentQL which tables and columns exist. The LLM only sees logical names; the compiler maps them to physical Postgres identifiers.
 
 Create `config/schema.yaml`:
 
@@ -85,7 +85,7 @@ links:
 5. **Quote `"on":`** — `on` is a YAML reserved word; always quote it
 
 !!! warning "Always quote `\"on\":`"
-    Forgetting the quotes causes the YAML parser to read `on: [...]` as `true: [...]`, which QCE catches with a clear `SchemaError` — but save yourself the confusion and quote it from the start.
+    Forgetting the quotes causes the YAML parser to read `on: [...]` as `true: [...]`, which IntentQL catches with a clear `SchemaError` — but save yourself the confusion and quote it from the start.
 
 See the full [Schema Reference](schema-reference.md) for all options.
 
@@ -93,10 +93,10 @@ See the full [Schema Reference](schema-reference.md) for all options.
 
 ## 3. Generate the LLM Spec
 
-QCE auto-generates a compact prompt file from your schema. Run this once, then regenerate whenever `schema.yaml` changes:
+IntentQL auto-generates a compact prompt file from your schema. Run this once, then regenerate whenever `schema.yaml` changes:
 
 ```bash
-python -m dsl_compiler.spec_builder \
+python -m intentql.spec_builder \
     --schema config/schema.yaml \
     --output config/queryplan_spec_generated.yaml
 ```
@@ -111,11 +111,11 @@ This creates the system prompt that tells the LLM what tables and columns exist,
 
 ```python title="quickstart.py"
 from sqlalchemy import create_engine
-import dsl_compiler as qce
+import intentql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-result = qce.execute_query_plan(
+result = intentql.execute_query_plan(
     engine=engine,
     schema_path="config/schema.yaml",
     query_plan={
@@ -146,11 +146,11 @@ print(result["sql"])
 ```python title="agent_quickstart.py"
 from sqlalchemy import create_engine
 from openai import OpenAI
-import dsl_compiler as qce
+import intentql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-agent = qce.QueryAgent(
+agent = intentql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
@@ -179,11 +179,11 @@ As you ask more questions, the memory accumulates verified intents and guides fu
 ```python title="planner_quickstart.py"
 from sqlalchemy import create_engine
 from openai import OpenAI
-import dsl_compiler as qce
+import intentql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-planner = qce.QueryPlanPlanner(
+planner = intentql.QueryPlanPlanner(
     llm=OpenAI(api_key="sk-..."),
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
@@ -195,11 +195,11 @@ print(plan["meta"]["retry_count"])       # 0 — succeeded on first attempt
 print(plan["meta"]["auto_fixes_applied"])
 
 # Step 2: validate independently (optional — execute_query_plan does this too)
-errors = qce.validate_query_plan(plan, "config/schema.yaml")
+errors = intentql.validate_query_plan(plan, "config/schema.yaml")
 assert not errors
 
 # Step 3: execute
-result = qce.execute_query_plan(engine=engine, schema_path="config/schema.yaml", query_plan=plan)
+result = intentql.execute_query_plan(engine=engine, schema_path="config/schema.yaml", query_plan=plan)
 print(result["rows"])
 ```
 
@@ -210,7 +210,7 @@ print(result["rows"])
 Use `validate_query_plan` to check plans in unit tests, CI, or a plan preview endpoint — no database connection required:
 
 ```python
-errors = qce.validate_query_plan(
+errors = intentql.validate_query_plan(
     query_plan=plan,
     schema_path="config/schema.yaml",
 )

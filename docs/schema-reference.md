@@ -1,6 +1,6 @@
 # Schema Reference
 
-`schema.yaml` is the **allowlist** that the QCE compiler enforces. Only tables and columns declared here are reachable by the LLM or any QueryPlan. Anything not listed causes the compiler to raise a `QueryPlanError` — there is no silent fallthrough, no dynamic DB introspection.
+`schema.yaml` is the **allowlist** that the IntentQL compiler enforces. Only tables and columns declared here are reachable by the LLM or any QueryPlan. Anything not listed causes the compiler to raise a `QueryPlanError` — there is no silent fallthrough, no dynamic DB introspection.
 
 !!! tip "Quick start"
     Copy the [Northwind example](getting-started.md) in Getting Started and adapt it to your database. You only need `tables` and `links` to get going.
@@ -59,7 +59,7 @@ Unknown type strings fall back to `TEXT`.
 
 ### Quoted Identifiers
 
-If your physical table or column name contains uppercase letters, spaces, or reserved words, QCE will automatically double-quote it in the generated SQL. You can also force quoting by wrapping the name in the YAML string:
+If your physical table or column name contains uppercase letters, spaces, or reserved words, IntentQL will automatically double-quote it in the generated SQL. You can also force quoting by wrapping the name in the YAML string:
 
 ```yaml
 - name: user_events
@@ -129,7 +129,7 @@ links:
 ```
 
 !!! warning "`on:` must always be quoted"
-    `on` is a YAML 1.1 reserved word that parses as boolean `true`. Always write `"on":` (with double quotes). QCE's schema validator will raise a `SchemaError` with a helpful message if it detects this issue.
+    `on` is a YAML 1.1 reserved word that parses as boolean `true`. Always write `"on":` (with double quotes). IntentQL's schema validator will raise a `SchemaError` with a helpful message if it detects this issue.
 
     ```yaml
     # WRONG — parsed as boolean true
@@ -229,7 +229,7 @@ links:
 
 ## Schema Validation
 
-When `execute_query_plan` or `load_and_validate_schema` is called, QCE validates the schema file and:
+When `execute_query_plan` or `load_and_validate_schema` is called, IntentQL validates the schema file and:
 
 - **Raises `SchemaError`** for fatal problems (missing required fields, unknown link tables, invalid `join_type`, `"on"` parsed as boolean)
 - **Prints warnings** for non-fatal issues (e.g. `primary_id` declared but not in the columns list)
@@ -237,7 +237,7 @@ When `execute_query_plan` or `load_and_validate_schema` is called, QCE validates
 You can run schema validation standalone:
 
 ```python
-from dsl_compiler.api.api import load_and_validate_schema
+from intentql.api.api import load_and_validate_schema
 
 schema = load_and_validate_schema("config/schema.yaml")
 # raises SchemaError on fatal issues

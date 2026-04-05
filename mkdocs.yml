@@ -1,5 +1,5 @@
-site_name: QCE
-site_description: Deterministic, schema-validated JSON → SQL for Postgres. Ship LLM-powered data features without ever letting an LLM write raw SQL.
+site_name: IntentQL
+site_description: Intent-driven, deterministic natural language to SQL for Postgres. Ship LLM-powered data features without ever letting an LLM write raw SQL.
 site_author: Alexander Abakah
 site_url: https://certifore.github.io/qce_docs
 repo_url: https://github.com/Certifore/qce_docs
@@ -54,11 +54,11 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Certifore/dsl_compiler
-      name: QCE on GitHub
+      link: https://github.com/Certifore/intentql
+      name: IntentQL on GitHub
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/qce/
-      name: QCE on PyPI
+      link: https://pypi.org/project/intentql/
+      name: IntentQL on PyPI
   version:
     provider: mike
   analytics:

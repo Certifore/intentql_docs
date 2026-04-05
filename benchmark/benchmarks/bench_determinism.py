@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import yaml
 
-from dsl_compiler.compiler import Compiler
+from intentql.compiler import Compiler
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "determinism_questions.json"
 SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "schema.yaml"
