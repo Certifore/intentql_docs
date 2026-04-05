@@ -135,7 +135,8 @@ IntentQL solves this with a **two-stage architecture**. The LLM extracts a light
     intentql init --db "postgresql://user:pass@host/db"
 
     # 2. Enrich with LLM descriptions (optional, recommended)
-    export OPENAI_API_KEY=sk-...
+    # Works with any OpenAI-compatible provider (OpenAI, Groq, Ollama, etc.)
+    export LLM_API_KEY=sk-...
     intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
     ```
 

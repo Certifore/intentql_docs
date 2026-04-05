@@ -72,11 +72,21 @@ intentql init \
 The bare schema from `init` has structure but no descriptions. Descriptions dramatically improve LLM accuracy because they tell the model what each column means and how to use it.
 
 ```bash
-export OPENAI_API_KEY=sk-...
+export LLM_API_KEY=sk-...   # or OPENAI_API_KEY
 intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
 ```
 
 This sends each table's structure and sample values to the LLM, which generates concise descriptions for every table and column. The `--db` flag is optional but recommended — sample values give the LLM much better context (e.g., it can detect "values are in UPPER CASE").
+
+Works with **any OpenAI-compatible provider** — no LLM SDK required:
+
+```bash
+# Groq (free tier)
+intentql describe --api-key gsk_... --base-url https://api.groq.com/openai/v1 --model llama-3.1-70b-versatile
+
+# Ollama (local)
+intentql describe --api-key ollama --base-url http://localhost:11434/v1 --model llama3
+```
 
 !!! tip "Review and refine"
     The generated descriptions are a great starting point. For best results, review them and add domain-specific guidance. For example, you might add: "Do not filter on this column for trade keywords; use `description` instead."

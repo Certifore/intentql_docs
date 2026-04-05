@@ -95,24 +95,34 @@ intentql describe --schema config/schema.yaml [--db URL]
 |---|---|---|
 | `--schema` | `config/schema.yaml` | Path to the schema file to enrich |
 | `--db` | `None` | Database URL for sampling values (optional, improves descriptions) |
+| `--api-key` | env var | LLM API key (reads `LLM_API_KEY` or `OPENAI_API_KEY` from env if omitted) |
+| `--base-url` | `https://api.openai.com/v1` | Any OpenAI-compatible API endpoint |
+| `--model` | `gpt-4o-mini` | Model name to use |
 
-**Requirements:**
-
-- `OPENAI_API_KEY` environment variable must be set
-- Uses `gpt-4o-mini` for cost-effective description generation
+**LLM-agnostic** — works with any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint. No LLM SDK is required; IntentQL uses raw HTTP.
 
 When `--db` is provided, the command samples distinct values from each column and includes them in the prompt, producing significantly better descriptions (e.g., the LLM can detect that "values are in UPPER CASE" or "contains free-text descriptions").
 
-**Example:**
+**Examples:**
 
 ```bash
+# OpenAI (default)
+export LLM_API_KEY=sk-...
 intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
 
-# Describing table: orders...
-# Describing table: customers...
-# Schema written to config/schema.yaml
-#   2 tables, 9 columns, 0 links
-# Descriptions added successfully.
+# Groq (free)
+intentql describe \
+    --api-key gsk_... \
+    --base-url https://api.groq.com/openai/v1 \
+    --model llama-3.1-70b-versatile \
+    --schema config/schema.yaml
+
+# Ollama (local)
+intentql describe \
+    --api-key ollama \
+    --base-url http://localhost:11434/v1 \
+    --model llama3 \
+    --schema config/schema.yaml
 ```
 
 ### Programmatic access
