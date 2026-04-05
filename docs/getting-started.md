@@ -38,76 +38,113 @@ pip install langchain-groq                  # Groq (free, fast)
 
 ---
 
-## 2. Define Your Schema
+## 2. Generate Your Schema
 
 `schema.yaml` is the **allowlist** that tells IntentQL which tables and columns exist. The LLM only sees logical names; the compiler maps them to physical Postgres identifiers.
 
-Create `config/schema.yaml`:
+IntentQL can generate this file automatically by introspecting your database:
 
-```yaml
-version: 1
-dialect: postgres
-
-tables:
-  - name: orders           # (1)
-    db_table: orders       # (2)
-    description: "Customer orders"
-    primary_id: order_id   # (3)
-    primary_date: order_date  # (4)
-    columns:
-      - { name: order_id,    db_column: order_id,    type: integer }
-      - { name: customer_id, db_column: customer_id, type: varchar }
-      - { name: order_date,  db_column: order_date,  type: date    }
-      - { name: freight,     db_column: freight,     type: numeric }
-      - { name: ship_country,db_column: ship_country,type: varchar }
-
-  - name: customers
-    db_table: customers
-    primary_id: customer_id
-    columns:
-      - { name: customer_id, db_column: customer_id, type: varchar }
-      - { name: company_name,db_column: company_name,type: varchar }
-      - { name: country,     db_column: country,     type: varchar }
-
-links:
-  - name: orders_to_customers
-    from_table: orders
-    to_table: customers
-    join_type: left
-    "on": # (4)
-      - { left: orders.customer_id, op: "=", right: customers.customer_id }
+```bash
+intentql init --db "postgresql://user:pass@host/db"
 ```
 
-1. **Logical name** — what appears in QueryPlan `dataset` and field refs
-2. **Physical name** — the actual Postgres table name
-3. **Primary key** — used for `count_distinct` and semantic lint
-4. **Primary date** — used for automatic time range filter resolution (e.g., "last year" → date filters on this column)
-5. **Quote `"on":`** — `on` is a YAML reserved word; always quote it
+This connects to your Postgres database and generates `config/schema.yaml` with:
 
-!!! warning "Always quote `\"on\":`"
-    Forgetting the quotes causes the YAML parser to read `on: [...]` as `true: [...]`, which IntentQL catches with a clear `SchemaError` — but save yourself the confusion and quote it from the start.
+- All tables and columns with proper type mappings
+- Physical `db_table` / `db_column` names (with quoting for camelCase)
+- `primary_id` from primary key constraints
+- `primary_date` via heuristic (finds `created_at`, `entry_date`, etc.)
+- `keyword_search_or` for tables with multiple text columns
+- `links` from foreign key constraints
+
+You can exclude tables and target a specific schema:
+
+```bash
+intentql init \
+    --db "postgresql://user:pass@host/db" \
+    --schema public \
+    --exclude migrations audit_log \
+    -o config/schema.yaml
+```
+
+### Enrich with LLM-generated descriptions (recommended)
+
+The bare schema from `init` has structure but no descriptions. Descriptions dramatically improve LLM accuracy because they tell the model what each column means and how to use it.
+
+```bash
+export OPENAI_API_KEY=sk-...
+intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
+```
+
+This sends each table's structure and sample values to the LLM, which generates concise descriptions for every table and column. The `--db` flag is optional but recommended — sample values give the LLM much better context (e.g., it can detect "values are in UPPER CASE").
+
+!!! tip "Review and refine"
+    The generated descriptions are a great starting point. For best results, review them and add domain-specific guidance. For example, you might add: "Do not filter on this column for trade keywords; use `description` instead."
+
+??? example "Example: generated vs. hand-tuned description"
+    **Generated:**
+    ```yaml
+    - name: shop
+      type: bigint
+      description: "Unique identifier for each shop, use for shop-specific queries."
+    ```
+    **Hand-tuned:**
+    ```yaml
+    - name: shop
+      type: bigint
+      description: >
+        Unique identifier for each shop. For questions about trade type
+        (plumbing, electrical), prefer filtering description or work_order_description
+        with keyword search rather than filtering on shop ID.
+    ```
+
+??? note "Writing schema.yaml by hand"
+    You can also create `schema.yaml` manually. Here's the minimal structure:
+
+    ```yaml
+    version: 1
+    dialect: postgres
+
+    tables:
+      - name: orders           # (1)
+        db_table: orders       # (2)
+        description: "Customer orders"
+        primary_id: order_id   # (3)
+        primary_date: order_date  # (4)
+        columns:
+          - { name: order_id,    db_column: order_id,    type: integer }
+          - { name: customer_id, db_column: customer_id, type: varchar }
+          - { name: order_date,  db_column: order_date,  type: date    }
+          - { name: freight,     db_column: freight,     type: numeric }
+          - { name: ship_country,db_column: ship_country,type: varchar }
+
+    links:
+      - name: orders_to_customers
+        from_table: orders
+        to_table: customers
+        join_type: left
+        "on":
+          - { left: orders.customer_id, op: "=", right: customers.customer_id }
+    ```
+
+    1. **Logical name** — what appears in QueryPlan `dataset` and field refs
+    2. **Physical name** — the actual Postgres table name
+    3. **Primary key** — used for `count_distinct` and semantic lint
+    4. **Primary date** — used for automatic time range filter resolution
+
+    !!! warning "Always quote `\"on\":`"
+        `on` is a YAML reserved word; bare `on:` is parsed as `true:`.
 
 See the full [Schema Reference](schema-reference.md) for all options.
 
 ---
 
-## 3. Generate the LLM Spec
+## 3. Run Your First Query
 
-IntentQL auto-generates a compact prompt file from your schema. Run this once, then regenerate whenever `schema.yaml` changes:
+!!! info "Spec file auto-generated"
+    `QueryAgent` automatically generates and manages the LLM spec file (`queryplan_spec_generated.yaml`) from your schema. You don't need to run a separate command — it regenerates whenever `schema.yaml` changes.
 
-```bash
-python -m intentql.spec_builder \
-    --schema config/schema.yaml \
-    --output config/queryplan_spec_generated.yaml
-```
-
-This creates the system prompt that tells the LLM what tables and columns exist, what the QueryPlan shape looks like, and how to construct valid plans. You never have to write it by hand.
-
----
-
-## 4. Run Your First Query
-
-### Option A — Hand-written plan (no LLM needed)
+### Option A — Hand-written plan (no LLM needed, no schema descriptions needed)
 
 ```python title="quickstart.py"
 from sqlalchemy import create_engine
@@ -153,7 +190,6 @@ engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 agent = intentql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
-    spec_path="config/queryplan_spec_generated.yaml",
     llm=OpenAI(api_key="sk-..."),
 )
 
@@ -186,7 +222,6 @@ engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 planner = intentql.QueryPlanPlanner(
     llm=OpenAI(api_key="sk-..."),
     schema_path="config/schema.yaml",
-    spec_path="config/queryplan_spec_generated.yaml",
 )
 
 # Step 1: generate a QueryPlan from natural language
@@ -205,7 +240,7 @@ print(result["rows"])
 
 ---
 
-## 5. Validate Without a Database
+## 4. Validate Without a Database
 
 Use `validate_query_plan` to check plans in unit tests, CI, or a plan preview endpoint — no database connection required:
 

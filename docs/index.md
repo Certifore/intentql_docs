@@ -128,9 +128,19 @@ IntentQL solves this with a **two-stage architecture**. The LLM extracts a light
 
 ## Quick Start
 
-=== "With an LLM"
+=== "From zero (CLI)"
+
+    ```bash
+    # 1. Generate schema from your database
+    intentql init --db "postgresql://user:pass@host/db"
+
+    # 2. Enrich with LLM descriptions (optional, recommended)
+    export OPENAI_API_KEY=sk-...
+    intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
+    ```
 
     ```python
+    # 3. Ask questions
     from sqlalchemy import create_engine
     from openai import OpenAI
     import intentql
@@ -140,7 +150,6 @@ IntentQL solves this with a **two-stage architecture**. The LLM extracts a light
     agent = intentql.QueryAgent(
         engine=engine,
         schema_path="config/schema.yaml",
-        spec_path="config/queryplan_spec_generated.yaml",
         llm=OpenAI(api_key="sk-..."),
     )
 
@@ -229,6 +238,11 @@ IntentQL solves this with a **two-stage architecture**. The LLM extracts a light
 <div class="qce-feature__icon">LLM</div>
 <p class="qce-feature__title">LLM-Agnostic</p>
 <p class="qce-feature__desc">One factory function — <code>make_llm_client()</code> — adapts OpenAI, LangChain, Gemini, Groq, Ollama, or any callable automatically.</p>
+</div>
+<div class="qce-feature" markdown>
+<div class="qce-feature__icon">CLI</div>
+<p class="qce-feature__title">Zero-Config Setup</p>
+<p class="qce-feature__desc">Run <code>intentql init --db URL</code> to auto-generate your schema from the database, then <code>intentql describe</code> to add LLM-powered column descriptions. No manual YAML needed.</p>
 </div>
 </div>
 

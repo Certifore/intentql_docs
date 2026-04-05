@@ -15,6 +15,8 @@ from intentql import execute_query_plan, QueryPlanPlanner, QueryAgent
 
 | Symbol | Kind | Summary |
 |---|---|---|
+| [`intentql init`](#intentql-init) | CLI | Introspect Postgres and generate `schema.yaml`. |
+| [`intentql describe`](#intentql-describe) | CLI | Enrich schema with LLM-generated descriptions. |
 | [`execute_query_plan`](#execute_query_plan) | function | Compile + execute a QueryPlan. Primary entrypoint. |
 | [`validate_query_plan`](#validate_query_plan) | function | Validate a plan offline. Returns list of error strings. |
 | [`validate_query_plan_dict`](#validate_query_plan_dict) | function | Structured validation. Returns typed error objects. |
@@ -32,6 +34,97 @@ from intentql import execute_query_plan, QueryPlanPlanner, QueryAgent
 | [`build_spec` / `write_spec`](#build_spec) | functions | Programmatic spec builder. |
 | [`get_queryplan_instructions`](#get_queryplan_instructions) | function | Build full LLM system prompt string. |
 | [`Compiler`](#compiler-low-level) | class | Low-level: compile a plan to `(sql, params)`. |
+
+---
+
+## CLI Commands
+
+IntentQL ships with a command-line interface for schema management. After `pip install intentql`, the `intentql` command is available.
+
+### `intentql init`
+
+Introspect a Postgres database and generate `schema.yaml` with full structure.
+
+```bash
+intentql init --db "postgresql://user:pass@host/db" [options]
+```
+
+**Options:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--db` | required | Database URL (e.g., `postgresql://user:pass@host/db`) |
+| `--output`, `-o` | `config/schema.yaml` | Output path for the generated schema |
+| `--schema` | `public` | Postgres schema to introspect |
+| `--exclude` | `[]` | Table names to skip (space-separated) |
+
+**Auto-detects:**
+
+- Tables, columns, and types (mapped to IntentQL types)
+- Physical names with proper quoting for camelCase identifiers
+- `primary_id` from primary key constraints
+- `primary_date` via heuristic (looks for `created_at`, `entry_date`, etc.)
+- `keyword_search_or` for tables with multiple text columns named like `description`, `name`, etc.
+- `links` from foreign key constraints (with `left` join type)
+
+**Example:**
+
+```bash
+intentql init \
+    --db "postgresql://user:pass@host/db" \
+    --schema public \
+    --exclude migrations audit_log \
+    -o config/schema.yaml
+
+# Schema written to config/schema.yaml
+#   13 tables, 183 columns, 4 links
+```
+
+### `intentql describe`
+
+Enrich an existing `schema.yaml` with LLM-generated table and column descriptions.
+
+```bash
+export OPENAI_API_KEY=sk-...
+intentql describe --schema config/schema.yaml [--db URL]
+```
+
+**Options:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--schema` | `config/schema.yaml` | Path to the schema file to enrich |
+| `--db` | `None` | Database URL for sampling values (optional, improves descriptions) |
+
+**Requirements:**
+
+- `OPENAI_API_KEY` environment variable must be set
+- Uses `gpt-4o-mini` for cost-effective description generation
+
+When `--db` is provided, the command samples distinct values from each column and includes them in the prompt, producing significantly better descriptions (e.g., the LLM can detect that "values are in UPPER CASE" or "contains free-text descriptions").
+
+**Example:**
+
+```bash
+intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
+
+# Describing table: orders...
+# Describing table: customers...
+# Schema written to config/schema.yaml
+#   2 tables, 9 columns, 0 links
+# Descriptions added successfully.
+```
+
+### Programmatic access
+
+Both commands are also available as Python functions:
+
+```python
+from intentql.cli import introspect_database, describe_schema
+
+schema = introspect_database(db_url="postgresql://...", schema_name="public")
+describe_schema(schema_path="config/schema.yaml", db_url="postgresql://...")
+```
 
 ---
 
@@ -230,7 +323,7 @@ class QueryAgent:
         *,
         engine: Engine,
         schema_path: str,
-        spec_path: str,
+        spec_path: str | None = None,
         llm: Any,
         max_plan_retries: int = 2,
         enforce_semantic_lint: bool = True,
@@ -244,7 +337,7 @@ class QueryAgent:
 |---|---|---|---|
 | `engine` | `sqlalchemy.Engine` | required | SQLAlchemy engine connected to Postgres |
 | `schema_path` | `str` | required | Path to `schema.yaml` |
-| `spec_path` | `str` | required | Path to `queryplan_spec_generated.yaml` |
+| `spec_path` | `str \| None` | `None` | Path to spec file. Auto-generates from schema if omitted. |
 | `llm` | `Any` | required | Any LLM — OpenAI client, LangChain model, callable |
 | `max_plan_retries` | `int` | `2` | Extra LLM attempts for the legacy pipeline fallback |
 | `enforce_semantic_lint` | `bool` | `True` | Block execution on lint errors (legacy pipeline only) |
