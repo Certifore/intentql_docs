@@ -8,7 +8,7 @@ Get from zero to a running IntentQL query in under five minutes.
 
 - Python ≥ 3.10
 - A running Postgres database (local or remote)
-- Optional: an LLM API key (OpenAI, Gemini, Groq, etc.) — only needed if you want natural language input
+- Optional: a Mistral API key, local Ollama model, or another compatible LLM — only needed for natural-language input
 - Optional: `pip install "intentql[memory]"` — persistent few-shot memory (recommended for production)
 
 ---
@@ -194,11 +194,13 @@ print(result["sql"])
 
 ### Option B — Natural language via `QueryAgent`
 
-`QueryAgent` uses the two-stage intent pipeline by default: the LLM extracts a lightweight intent, then deterministic code builds the plan. At startup it also builds a value index from your database and initializes ChromaDB-backed few-shot memory.
+`QueryAgent` uses the two-stage intent pipeline by default: the model extracts lightweight
+semantic hints, then deterministic code resolves and builds the plan. At startup it also
+builds a value index from your database and initializes optional ChromaDB-backed few-shot
+memory.
 
 ```python title="agent_quickstart.py"
 from sqlalchemy import create_engine
-from openai import OpenAI
 import intentql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
@@ -206,13 +208,38 @@ engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 agent = intentql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
-    llm=OpenAI(api_key="sk-..."),
+    llm="mistral",
 )
 
 result = agent.ask("Which country had the most orders last month?")
 print(result["rows"])    # [{"ship_country": "Germany", "n": 34}]
 print(result["sql"])
 ```
+
+Configure Mistral before running the example:
+
+```bash
+export MISTRAL_AI=...
+# optional: export MISTRAL_MODEL=mistral-small-latest
+```
+
+To use a local Ollama model instead:
+
+```bash
+export OLLAMA_MODEL=intentql-gemma4
+```
+
+```python
+agent = intentql.QueryAgent(
+    engine=engine,
+    schema_path="config/schema.yaml",
+    llm="ollama",
+)
+```
+
+Provider strings may include a model name, such as `mistral:mistral-small-latest` or
+`ollama:qwen2.5:7b`. You can also pass an OpenAI client, LangChain model, custom callable,
+or object implementing `generate_json`.
 
 On the first query, the agent logs the value index build and memory initialization:
 
@@ -224,7 +251,9 @@ On the first query, the agent logs the value index build and memory initializati
 [IntentMemory] Stored example (1 total)
 ```
 
-As you ask more questions, the memory accumulates verified intents and guides future extractions for consistency.
+As you ask more questions, optional memory can accumulate prior successful intents and guide
+future extraction. Treat remembered examples as an optimization, not as a substitute for
+schema review and regression testing.
 
 ### Option C — LLM planner, execute yourself
 

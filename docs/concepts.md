@@ -40,7 +40,7 @@ Natural language question
  │  1. Few-Shot Memory Lookup                          │
  │     IntentMemory.retrieve()                         │
  │                                                     │
- │  • Embeds the question (OpenAI text-embedding)      │
+ │  • Embeds the question locally through ChromaDB     │
  │  • Finds similar past questions in ChromaDB         │
  │  • Returns verified (question, intent) examples     │
  └─────────────────────────────────────────────────────┘
@@ -203,7 +203,7 @@ LLM sees the working intent and follows the same structure
 
 `schema.yaml` is the **single source of truth** for everything the compiler is allowed to touch.
 
-!!! danger "Security guarantee"
+!!! danger "Schema boundary"
     If a table or column is not declared in `schema.yaml`, it **cannot** appear in compiled SQL — not from the LLM, not from a hand-written plan, not from user input of any kind. The compiler raises `QueryPlanError` and execution never happens.
 
 The schema defines:
@@ -349,7 +349,9 @@ sql, params = Compiler(schema).compile(plan)
 # params: {"p0": 100}
 ```
 
-This makes SQL injection structurally impossible regardless of what the LLM (or a user) provides.
+This prevents filter values from being interpreted as SQL within the compiler execution
+path. Applications must still protect database credentials, connection policy, and any SQL
+executed outside IntentQL.
 
 ---
 

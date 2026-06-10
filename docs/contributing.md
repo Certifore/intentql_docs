@@ -3,7 +3,33 @@
 Thanks for your interest in contributing to IntentQL!
 
 !!! tip "New to the codebase?"
-    Read [Core Concepts](concepts.md) first to understand the pipeline, then come back here. The best first contribution is usually a new operator or aggregation — both require only a few targeted edits.
+    Read [Why a Compiler?](architecture.md) and [Core Concepts](concepts.md) first to
+    understand the trust boundary and current pipeline.
+
+## The Generality Rule
+
+IntentQL uses benchmarks to discover missing capabilities, not as a set of answers to
+memorize.
+
+Every compiler or resolver change must describe a reusable semantic capability and include
+domain-neutral regression coverage. Core logic must not branch on:
+
+- benchmark case IDs;
+- benchmark database or domain names;
+- customer or entity names;
+- known question text;
+- expected answers.
+
+A useful test is: **would this change still make sense if every table, column, and entity
+were renamed?** If not, the behavior probably belongs in schema configuration, runtime
+evidence, or an application extension rather than the core compiler.
+
+When fixing a benchmark mismatch, include:
+
+1. the general failure category;
+2. a domain-neutral regression test;
+3. evidence that previously correct behavior remains correct;
+4. any ambiguity or assumptions the compiler cannot safely resolve.
 
 ---
 
@@ -51,6 +77,9 @@ intentql/
   compiler.py           # core SQL compiler: logical → physical, values → bind params
   executor.py           # executes compiled SQL against Postgres
   planner.py            # LLM → QueryPlan orchestration + retry loop
+  intent_planner.py     # semantic-hint extraction and deterministic plan orchestration
+  evidence_planner.py   # generic evidence-guided deterministic planning
+  intent_normalize.py   # deterministic intent normalization
   validation.py         # three-layer validation: Pydantic + allowlist + semantic
   join_planner.py       # BFS auto-join injection
   semantic_lint.py      # question-aware lint checks (5 rules)
@@ -70,11 +99,10 @@ config/
   queryplan_spec_generated.yaml   # auto-generated — regenerate after schema changes
 
 test/
-  test_main.py          # unit and integration tests
-  regression_test/      # 28-question Northwind regression suite
-
-benchmark/              # benchmarks: IntentQL vs LangChain vs GPT-4 Direct
-docs/                   # this documentation site (MkDocs)
+  test_main.py                         # unit and integration tests
+  test_generic_planner_resolution.py   # domain-neutral planner regression tests
+  regression_test/                     # regression fixtures
+  benchmark/                           # BIRD Mini-Dev runner and utilities
 ```
 
 ---
@@ -168,7 +196,9 @@ python -m intentql.spec_builder \
 3. **Run checks:**
 
     ```bash
-    ruff check intentql/ && python test/test_main.py lint
+    ruff check intentql/
+    python test/test_main.py lint
+    python test/test_generic_planner_resolution.py
     ```
 
 4. **Commit** with a clear message:
@@ -179,6 +209,10 @@ python -m intentql.spec_builder \
 
 5. **Open a PR** against `main`. Describe what the change does and why.
 
+Pull requests are proposals. The lead maintainer, Alexander Abakah, reviews and decides
+whether to merge every change into the official repository. Opening a pull request or
+contributing code does not grant merge or release authority.
+
 ---
 
 ## Building the Package
@@ -188,13 +222,8 @@ python -m build
 # output: dist/
 ```
 
-## Publishing to PyPI
-
-```bash
-python -m twine upload dist/*
-```
-
-Requires a PyPI API token set as `TWINE_PASSWORD` or in `~/.pypirc`.
+Official GitHub releases, release tags, and PyPI publications are created only by the lead
+maintainer.
 
 ---
 
@@ -220,3 +249,9 @@ mkdocs build   # static HTML → site/
 - Raise typed exceptions (`QueryPlanError`, `SchemaError`, …) — never bare `Exception` from public paths
 - All filter values must go through bind parameters — never `str.format()` or f-strings into SQL
 - Tests should be self-contained and not require a live DB unless they're in `regression_test/`
+- Benchmark-driven changes must remain domain-neutral and must not encode expected answers
+
+## License
+
+By submitting a contribution for inclusion, you agree that it may be distributed under
+the project's Apache License 2.0.

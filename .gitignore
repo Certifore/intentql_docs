@@ -1,0 +1,13 @@
+# Local documentation environment
+env_qce_docs/
+
+# MkDocs output
+site/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Local configuration and secrets
+.env
+.env.*

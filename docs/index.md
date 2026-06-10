@@ -2,301 +2,205 @@
 
 <div class="qce-hero" markdown>
 
-<div class="qce-hero__eyebrow">IntentQL</div>
+<div class="qce-hero__eyebrow">Open-source semantic compiler</div>
 
-<h1 class="qce-hero__title">LLM-powered queries.<br>Deterministic SQL. Zero trust.</h1>
+<h1 class="qce-hero__title">IntentQL</h1>
+
+<p class="qce-hero__lead">Reliable natural-language analytics without giving an LLM control of your database.</p>
 
 <p class="qce-hero__subtitle">
-IntentQL extracts a lightweight <strong>QueryIntent</strong> from natural language, normalizes it
-deterministically, validates it against real database values, and compiles it into
-parameterized Postgres SQL — enforcing your schema allowlist, neutralizing injections,
-and delivering <strong>consistent results</strong> across rephrasings.
-Let your LLM own <em>intent</em>. Let IntentQL own <em>everything else</em>.
+IntentQL lets a model provide semantic hints, then uses schema-aware deterministic
+infrastructure to resolve those hints into a typed plan, validate it, and compile
+parameterized Postgres SQL. The model interprets language. The compiler owns execution.
 </p>
 
 <div class="qce-hero__actions">
-  <a href="getting-started/" class="qce-btn qce-btn--primary">→ Get Started</a>
-  <a href="concepts/" class="qce-btn qce-btn--outline">How it works</a>
-  <a href="https://github.com/Certifore/intentql" class="qce-btn qce-btn--outline">GitHub</a>
+  <a href="getting-started/" class="qce-btn qce-btn--primary">Get started</a>
+  <a href="architecture/" class="qce-btn qce-btn--outline">Why a compiler?</a>
+  <a href="https://github.com/Certifore/intentql" class="qce-btn qce-btn--outline">View source</a>
 </div>
 
 <div class="qce-badges">
-  <span class="qce-badge qce-badge--purple">Python ≥ 3.10</span>
-  <span class="qce-badge qce-badge--blue">Postgres</span>
-  <span class="qce-badge qce-badge--green">MIT License</span>
+  <span class="qce-badge qce-badge--blue">Python 3.10+</span>
+  <span class="qce-badge qce-badge--green">Postgres</span>
+  <span class="qce-badge qce-badge--amber">Model-independent</span>
   <span class="qce-badge qce-badge--gray">SQLAlchemy 2</span>
-  <span class="qce-badge qce-badge--green">v0.2.0</span>
+  <span class="qce-badge qce-badge--green">Open source</span>
 </div>
 
 </div>
+
+<div class="qce-pipeline" aria-label="IntentQL pipeline">
+  <div class="qce-pipeline__step">
+    <span class="qce-pipeline__num">01</span>
+    <strong>Interpret</strong>
+    <span>Model proposes semantic hints</span>
+  </div>
+  <div class="qce-pipeline__arrow">→</div>
+  <div class="qce-pipeline__step">
+    <span class="qce-pipeline__num">02</span>
+    <strong>Resolve</strong>
+    <span>Schema and evidence ground meaning</span>
+  </div>
+  <div class="qce-pipeline__arrow">→</div>
+  <div class="qce-pipeline__step">
+    <span class="qce-pipeline__num">03</span>
+    <strong>Validate</strong>
+    <span>Typed plans enforce boundaries</span>
+  </div>
+  <div class="qce-pipeline__arrow">→</div>
+  <div class="qce-pipeline__step">
+    <span class="qce-pipeline__num">04</span>
+    <strong>Compile</strong>
+    <span>Deterministic, parameterized SQL</span>
+  </div>
+</div>
+
+## Why IntentQL Exists
+
+Text-to-SQL systems often make a probabilistic model responsible for interpretation,
+schema selection, joins, SQL syntax, and safety at the same time. When the answer is wrong,
+it is difficult to tell which responsibility failed.
+
+IntentQL introduces a semantic compiler between the model and the database.
+
+| Raw model-generated SQL | IntentQL |
+|---|---|
+| Model produces executable SQL | Model output is treated as untrusted hints |
+| Schema policy lives in a prompt | Tables and columns are checked against an allowlist |
+| User values may become SQL text | Values are emitted as bind parameters |
+| Join behavior depends on generation | Joins must follow declared schema links |
+| Model and prompt changes alter everything | Compiler behavior is independently testable |
+| Invalid guesses may look plausible | Unknown references fail validation |
+
+IntentQL does not claim that a compiler makes language unambiguous. It makes the boundary
+between uncertain interpretation and database execution explicit, inspectable, and testable.
+
+## Current Evidence
 
 <div class="qce-stats" markdown>
 <div class="qce-stat">
-<span class="qce-stat__num">99% Consistent</span>
-<span class="qce-stat__label">Same question, same answer</span>
+<span class="qce-stat__num">50 / 50</span>
+<span class="qce-stat__label">Injection-handling property tests</span>
 </div>
 <div class="qce-stat">
-<span class="qce-stat__num">Deterministic</span>
-<span class="qce-stat__label">Same intent, same SQL</span>
+<span class="qce-stat__num">20 / 20</span>
+<span class="qce-stat__label">Deterministic compilation tests</span>
 </div>
 <div class="qce-stat">
-<span class="qce-stat__num">Schema-Scoped</span>
-<span class="qce-stat__label">Allowlist only access</span>
+<span class="qce-stat__num">30 / 30</span>
+<span class="qce-stat__label">Unknown-schema rejection tests</span>
 </div>
 <div class="qce-stat">
-<span class="qce-stat__num">Self-Improving</span>
-<span class="qce-stat__label">Learns from successful queries</span>
+<span class="qce-stat__num">115 / 130</span>
+<span class="qce-stat__label">Partial BIRD Mini-Dev execution matches</span>
 </div>
 </div>
 
----
+The BIRD result is a **partial development evaluation** over case IDs 20-149 using provided
+evidence. It is not an official leaderboard score. See [Benchmarks](benchmarks.md) for the
+methodology, caveats, and publication standard.
 
-## The Problem with LLM-Generated SQL
-
-Every production AI data feature eventually hits the same walls:
-
-<div class="qce-comparison" markdown>
-
-|  | Raw LLM SQL | **IntentQL** |
-|---|:---:|:---:|
-| SQL injection via prompt | <span class="cross">No: never safe</span> | <span class="check">Yes: bind params always</span> |
-| Hallucinated table names | <span class="cross">No: silent wrong answer risk</span> | <span class="check">Yes: hard error, allowlist enforced</span> |
-| Non-deterministic output | <span class="cross">No: varies per call</span> | <span class="check">Yes: intent normalization + memory</span> |
-| Inconsistent across rephrasings | <span class="cross">No: different SQL each time</span> | <span class="check">Yes: few-shot memory + normalization</span> |
-| Wrong filter values | <span class="cross">No: LLM guesses names</span> | <span class="check">Yes: value index from real data</span> |
-| LLM picks JOIN strategy | <span class="cross">No: unpredictable</span> | <span class="check">Yes: BFS shortest path, always</span> |
-| Needs DB introspection | <span class="cross">No: exposes full schema</span> | <span class="check">Yes: LLM sees logical names only</span> |
-
-</div>
-
-IntentQL solves this with a **two-stage architecture**. The LLM extracts a lightweight `QueryIntent` — no SQL, no table names, no structural decisions. Deterministic code normalizes the intent, validates it against real database values, and builds a correct `QueryPlan` that compiles into safe, parameterized SQL.
-
----
-
-## How It Works
-
-```
-  User question
-       │
-       ▼
-  ┌────────────────────────────────────────────────────┐
-  │  Few-Shot Memory (ChromaDB)                        │
-  │  Retrieves similar past questions + verified       │  ← learns from success
-  │  intents as examples for the LLM                   │
-  └────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌────────────────────────────────────────────────────┐
-  │  LLM  (OpenAI · Gemini · Groq · any model)        │
-  │  Extracts: QueryIntent JSON                        │  ← lightweight intent, not SQL
-  │  Guided by: schema + value index + few-shot        │
-  └────────────────────────────────────────────────────┘
-       │
-       ▼  { "dataset": "orders", "keyword": "...", "filters": [...] }
-  ┌────────────────────────────────────────────────────┐
-  │  Intent Normalization + Value Validation           │
-  │  · Absorbs redundant keyword/filter overlap        │
-  │  · Fuzzy-resolves values against real DB data      │  ← deterministic cleanup
-  │  · Retries LLM if values don't match              │
-  └────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌────────────────────────────────────────────────────┐
-  │  Deterministic Plan Builder                        │
-  │  · Intent + schema metadata → QueryPlan JSON       │
-  │  · Keyword → OR clause, time → date sentinels     │  ← zero LLM decisions
-  │  · count → count_distinct(primary_id)              │
-  └────────────────────────────────────────────────────┘
-       │
-       ▼
-  ┌────────────────────────────────────────────────────┐
-  │  IntentQL Compiler                                      │
-  │  · Validates against schema.yaml allowlist          │
-  │  · All values → bind parameters                    │
-  │  · Auto-injects JOIN paths via BFS                 │
-  └────────────────────────────────────────────────────┘
-       │
-       ▼  SELECT count(DISTINCT "id") FROM ... WHERE ...
-  ┌────────────────────────────────────────────────────┐
-  │  Postgres                                          │
-  └────────────────────────────────────────────────────┘
-       │
-       ▼  { "rows": [...], "row_count": 42, "sql": "...", "params": {...} }
-```
-
----
-
-## Quick Start
-
-=== "From zero (CLI)"
-
-    ```bash
-    # 1. Generate schema from your database
-    intentql init --db "postgresql://user:pass@host/db"
-
-    # 2. Enrich with LLM descriptions (optional, recommended)
-    # Works with any OpenAI-compatible provider (OpenAI, Groq, Ollama, etc.)
-    export LLM_API_KEY=sk-...
-    intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
-    ```
-
-    ```python
-    # 3. Ask questions
-    from sqlalchemy import create_engine
-    from openai import OpenAI
-    import intentql
-
-    engine = create_engine("postgresql+psycopg2://user:pass@host/db")
-
-    agent = intentql.QueryAgent(
-        engine=engine,
-        schema_path="config/schema.yaml",
-        llm=OpenAI(api_key="sk-..."),
-    )
-
-    result = agent.ask("Top 10 customers by total order value last 90 days")
-    print(result["rows"])
-    print(result["sql"])
-    ```
-
-=== "Hand-written plan"
-
-    ```python
-    from sqlalchemy import create_engine
-    import intentql
-
-    engine = create_engine("postgresql+psycopg2://user:pass@host/db")
-
-    result = intentql.execute_query_plan(
-        engine=engine,
-        schema_path="config/schema.yaml",
-        query_plan={
-            "dataset": "orders",
-            "filters": [
-                {"field": "ship_country", "op": "=", "value": "Germany"},
-                {
-                    "field": "order_date",
-                    "op": ">=",
-                    "value": {"$relative_date": {"op": "now_minus_days", "days": 30}},
-                },
-            ],
-            "metrics": [{"agg": "sum", "field": "freight", "alias": "total_freight"}],
-            "limit": 1,
-        },
-    )
-    print(result["rows"])
-    print(result["sql"])
-    ```
-
-=== "Validate offline"
-
-    ```python
-    import intentql
-
-    errors = intentql.validate_query_plan(
-        query_plan=plan,
-        schema_path="config/schema.yaml",
-    )
-
-    if errors:
-        for e in errors:
-            print(e)
-    else:
-        print("Plan is valid")
-    ```
-
----
-
-## Feature Highlights
+## What The Compiler Owns
 
 <div class="qce-features" markdown>
 <div class="qce-feature" markdown>
-<div class="qce-feature__icon">Consistency</div>
-<p class="qce-feature__title">99% Consistent Across Rephrasings</p>
-<p class="qce-feature__desc">Intent normalization + few-shot memory ensure the same question phrased differently produces the same result. The system learns from every successful query.</p>
-</div>
-<div class="qce-feature" markdown>
-<div class="qce-feature__icon">Accuracy</div>
-<p class="qce-feature__title">Value Index Grounding</p>
-<p class="qce-feature__desc">At startup, IntentQL indexes real database values and injects them as pick-lists into the LLM prompt. The LLM picks from actual data — no more hallucinated filter values.</p>
-</div>
-<div class="qce-feature" markdown>
-<div class="qce-feature__icon">Security</div>
-<p class="qce-feature__title">Injection-Proof by Design</p>
-<p class="qce-feature__desc">Every filter value becomes a named bind parameter. There is no code path that interpolates user input into SQL text — ever.</p>
-</div>
-<div class="qce-feature" markdown>
 <div class="qce-feature__icon">Schema</div>
-<p class="qce-feature__title">Schema Allowlist Enforcement</p>
-<p class="qce-feature__desc">Only tables and columns declared in <code>schema.yaml</code> are reachable. Unknown names raise a hard <code>QueryPlanError</code> — no silent degradation.</p>
+<p class="qce-feature__title">Allowlisted access</p>
+<p class="qce-feature__desc">Only configured tables, columns, and links can enter a valid plan. Unknown references fail before execution.</p>
 </div>
 <div class="qce-feature" markdown>
-<div class="qce-feature__icon">Memory</div>
-<p class="qce-feature__title">Self-Improving via ChromaDB</p>
-<p class="qce-feature__desc">Successful (question, intent) pairs are stored in ChromaDB and retrieved as few-shot examples for similar future questions. No manual training required.</p>
+<div class="qce-feature__icon">Resolution</div>
+<p class="qce-feature__title">Grounded semantic planning</p>
+<p class="qce-feature__desc">Names, types, descriptions, values, keys, dates, and relationships help resolve model hints into valid plan elements.</p>
 </div>
 <div class="qce-feature" markdown>
-<div class="qce-feature__icon">LLM</div>
-<p class="qce-feature__title">LLM-Agnostic</p>
-<p class="qce-feature__desc">One factory function — <code>make_llm_client()</code> — adapts OpenAI, LangChain, Gemini, Groq, Ollama, or any callable automatically.</p>
+<div class="qce-feature__icon">IR</div>
+<p class="qce-feature__title">Typed QueryPlan contract</p>
+<p class="qce-feature__desc">A structured intermediate representation separates language interpretation from executable SQL.</p>
 </div>
 <div class="qce-feature" markdown>
-<div class="qce-feature__icon">CLI</div>
-<p class="qce-feature__title">Zero-Config Setup</p>
-<p class="qce-feature__desc">Run <code>intentql init --db URL</code> to auto-generate your schema from the database, then <code>intentql describe</code> to add LLM-powered column descriptions. No manual YAML needed.</p>
+<div class="qce-feature__icon">Safety</div>
+<p class="qce-feature__title">Parameterized SQL</p>
+<p class="qce-feature__desc">Filter values become bind parameters. The model never receives a path for directly executing generated SQL.</p>
+</div>
+<div class="qce-feature" markdown>
+<div class="qce-feature__icon">Models</div>
+<p class="qce-feature__title">Use expensive models less</p>
+<p class="qce-feature__desc">The compiler performs structural work so a model can focus on compact semantic hints. Mistral, Ollama, and custom adapters are supported.</p>
+</div>
+<div class="qce-feature" markdown>
+<div class="qce-feature__icon">Evaluation</div>
+<p class="qce-feature__title">General improvements only</p>
+<p class="qce-feature__desc">Benchmark failures guide reusable compiler capabilities. Domain-specific benchmark branches are not accepted in core logic.</p>
 </div>
 </div>
 
----
-
-## Install
+## Quick Start
 
 ```bash
 pip install intentql
+intentql init --db "postgresql://user:pass@host/db"
 ```
 
-```bash
-# Optional: few-shot memory (ChromaDB)
-pip install "intentql[memory]"
-# Your LLM SDK (example — use any provider you wire into QueryAgent)
-pip install openai
+```python
+from sqlalchemy import create_engine
+from intentql.agent import QueryAgent
+
+engine = create_engine("postgresql+psycopg2://user:pass@host/db")
+
+agent = QueryAgent(
+    engine=engine,
+    schema_path="config/schema.yaml",
+    llm="mistral",  # or "ollama", an adapter, or a compatible client
+)
+
+result = agent.ask("Which customers placed the most orders last year?")
+print(result["rows"])
+print(result["sql"])
 ```
 
-!!! tip "Installing from source"
-    ```bash
-    git clone https://github.com/Certifore/intentql
-    cd intentql
-    pip install -e ".[dev]"
-    ```
+IntentQL can also validate and execute hand-written `QueryPlan` objects without any model.
+See [Getting Started](getting-started.md) for setup and provider configuration.
 
----
+## Open By Design
 
-## Next Steps
+The public core includes the semantic plan formats, schema resolver, planner, validator,
+compiler, executor, adapters, and benchmark harnesses. You can run it locally against your
+own model and database.
+
+IntentQL is licensed under Apache License 2.0. Contributions are proposed through pull
+requests and become part of the official project after review and merge by the lead
+maintainer.
+
+[Read the open-source project principles](open-source.md)
+
+## Explore
 
 <div class="qce-path-grid" markdown>
-<a class="qce-path-card" href="getting-started/">
-  <span class="qce-path-card__kicker">Quickstart</span>
-  <span class="qce-path-card__title">Get Started in 5 Minutes</span>
-  <span class="qce-path-card__desc">Install IntentQL, define your schema, and run your first query against a live database.</span>
-  <span class="qce-path-card__cta">Read guide →</span>
-</a>
-<a class="qce-path-card" href="concepts/">
+<a class="qce-path-card" href="architecture/">
   <span class="qce-path-card__kicker">Architecture</span>
-  <span class="qce-path-card__title">Understand the Pipeline</span>
-  <span class="qce-path-card__desc">See how intents are extracted, normalized, validated, and compiled into safe SQL.</span>
-  <span class="qce-path-card__cta">Read concepts →</span>
+  <span class="qce-path-card__title">Why a semantic compiler?</span>
+  <span class="qce-path-card__desc">Understand the trust boundary between model hints and deterministic execution.</span>
+  <span class="qce-path-card__cta">Read architecture →</span>
+</a>
+<a class="qce-path-card" href="benchmarks/">
+  <span class="qce-path-card__kicker">Evidence</span>
+  <span class="qce-path-card__title">Benchmarks and limitations</span>
+  <span class="qce-path-card__desc">See current results, methodology, caveats, and the standard for future claims.</span>
+  <span class="qce-path-card__cta">Inspect evaluation →</span>
 </a>
 <a class="qce-path-card" href="query-plan-reference/">
   <span class="qce-path-card__kicker">Reference</span>
-  <span class="qce-path-card__title">QueryPlan Format</span>
-  <span class="qce-path-card__desc">Operators, aggregations, rollup, set operations, and advanced plan constructs.</span>
+  <span class="qce-path-card__title">QueryPlan grammar</span>
+  <span class="qce-path-card__desc">Explore the typed intermediate representation compiled by IntentQL.</span>
   <span class="qce-path-card__cta">Open reference →</span>
 </a>
-<a class="qce-path-card" href="llm-integration/">
-  <span class="qce-path-card__kicker">Integrations</span>
-  <span class="qce-path-card__title">Connect Your LLM</span>
-  <span class="qce-path-card__desc">Use OpenAI, Gemini, Groq, LangChain, Ollama, or any callable adapter.</span>
-  <span class="qce-path-card__cta">Open integration guide →</span>
+<a class="qce-path-card" href="open-source/">
+  <span class="qce-path-card__kicker">Community</span>
+  <span class="qce-path-card__title">Open-source direction</span>
+  <span class="qce-path-card__desc">Learn what belongs in the public core and how to contribute without reward hacking.</span>
+  <span class="qce-path-card__cta">Read project principles →</span>
 </a>
 </div>
 

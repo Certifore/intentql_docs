@@ -1,11 +1,10 @@
 site_name: IntentQL
-site_description: Intent-driven, deterministic natural language to SQL for Postgres. Ship LLM-powered data features without ever letting an LLM write raw SQL.
+site_description: An open-source semantic compiler for reliable natural-language analytics over Postgres.
 site_author: Alexander Abakah
 site_url: https://certifore.github.io/intentql_docs
-repo_url: https://github.com/Certifore/intentql_docs
-repo_name: Certifore/intentql_docs
-edit_uri: edit/main/docs/
-copyright: Copyright &copy; 2026 Alexander Abakah &mdash; MIT License
+repo_url: https://github.com/Certifore/intentql
+repo_name: Certifore/intentql
+copyright: Copyright &copy; 2026 Alexander Abakah
 
 theme:
   name: material
@@ -46,7 +45,6 @@ theme:
   icon:
     repo: fontawesome/brands/github
     logo: material/database-arrow-right
-  favicon: assets/favicon.png
 
 extra_css:
   - stylesheets/extra.css
@@ -59,8 +57,6 @@ extra:
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/intentql/
       name: IntentQL on PyPI
-  version:
-    provider: mike
   analytics:
     feedback:
       title: Was this page helpful?
@@ -118,11 +114,17 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
-  - Core Concepts: concepts.md
+  - Architecture:
+      - Why a Compiler: architecture.md
+      - Core Concepts: concepts.md
+  - Evaluation:
+      - Benchmarks: benchmarks.md
+      - Project Roadmap: roadmap.md
   - References:
       - Schema Reference: schema-reference.md
       - QueryPlan Reference: query-plan-reference.md
       - API Reference: api-reference.md
       - Exceptions: exceptions.md
   - LLM Integration: llm-integration.md
+  - Open Source: open-source.md
   - Contributing: contributing.md

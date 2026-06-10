@@ -1,6 +1,8 @@
 # LLM Integration
 
-IntentQL is **LLM-agnostic**. One factory function — `make_llm_client()` — adapts any model object automatically. You are never locked into a specific provider.
+IntentQL is **LLM-agnostic**. The `make_llm_client()` factory supports built-in provider
+strings, compatible OpenAI and LangChain clients, custom callables, and objects implementing
+IntentQL's small `generate_json` interface.
 
 <div class="qce-path-grid" markdown>
 <a class="qce-path-card" href="getting-started/">
@@ -50,9 +52,57 @@ You can also import and use adapters directly for fine-grained control.
 
 ## Supported Providers
 
+=== "Mistral"
+
+    IntentQL includes a dependency-free Mistral adapter that calls the Mistral chat
+    completions API directly.
+
+    ```bash
+    export MISTRAL_AI=...
+    # optional
+    export MISTRAL_MODEL=mistral-small-latest
+    ```
+
+    ```python
+    import intentql
+
+    agent = intentql.QueryAgent(
+        engine=engine,
+        schema_path="config/schema.yaml",
+        llm="mistral",
+    )
+    ```
+
+    Pin a model inline with `llm="mistral:mistral-small-latest"`. The adapter also reads
+    `MISTRAL_BASE_URL`, `MISTRAL_MAX_RETRIES`, and `MISTRAL_RETRY_BASE_SECONDS`.
+
+=== "Ollama (built in)"
+
+    IntentQL includes a direct Ollama adapter for local models. No LangChain dependency is
+    required.
+
+    ```bash
+    export OLLAMA_MODEL=intentql-gemma4
+    # optional
+    export OLLAMA_BASE_URL=http://127.0.0.1:11434
+    export OLLAMA_NUM_CTX=8192
+    ```
+
+    ```python
+    import intentql
+
+    agent = intentql.QueryAgent(
+        engine=engine,
+        schema_path="config/schema.yaml",
+        llm="ollama",
+    )
+    ```
+
+    Pin another local model with `llm="ollama:qwen2.5:7b"`.
+
 === "OpenAI"
 
-    **Best for:** Production workloads. `gpt-4o-mini` offers the best quality/cost ratio.
+    Pass an OpenAI client when you want to use the Responses API adapter.
 
     ```bash
     pip install intentql openai
@@ -70,7 +120,8 @@ You can also import and use adapters directly for fine-grained control.
     )
     ```
 
-    The OpenAI adapter uses the **Responses API with structured output** (`response_format=json_schema`), which guarantees the model returns valid JSON matching the QueryPlan schema. Requires `gpt-4o-mini` or newer.
+    The OpenAI adapter requests structured JSON output and still validates the returned
+    object through IntentQL's normal plan-validation path.
 
     **Specify a different model:**
 
@@ -81,11 +132,9 @@ You can also import and use adapters directly for fine-grained control.
     planner = intentql.QueryPlanPlanner(llm=adapter, ...)
     ```
 
-=== "Google Gemini (Free)"
+=== "Google Gemini"
 
-    **Best for:** Development and testing. Free tier: 1,500 req/day, no credit card.
-
-    Get a free API key at [aistudio.google.com](https://aistudio.google.com).
+    Connect Gemini through a compatible LangChain model.
 
     ```bash
     pip install langchain-google-genai
@@ -106,11 +155,9 @@ You can also import and use adapters directly for fine-grained control.
     )
     ```
 
-=== "Groq (Free + Fast)"
+=== "Groq"
 
-    **Best for:** Low-latency development. Free tier, no credit card required.
-
-    Get a free API key at [console.groq.com](https://console.groq.com).
+    Connect Groq through a compatible LangChain model.
 
     ```bash
     pip install langchain-groq
@@ -152,9 +199,10 @@ You can also import and use adapters directly for fine-grained control.
 
     The LangChain adapter parses JSON from the model's text output directly — no tool calling or structured output required — so it works with any model, including open-source ones.
 
-=== "Ollama (Fully Local)"
+=== "Ollama through LangChain"
 
-    **Best for:** Air-gapped environments, privacy requirements, iterating without API costs.
+    Use this option when your application already standardizes on LangChain. For a smaller
+    dependency surface, use the built-in Ollama adapter shown above.
 
     ```bash
     # Install Ollama from https://ollama.ai, then pull a model
@@ -397,4 +445,5 @@ SEMANTIC WARNINGS (strong suggestions):
 - Question asks for "top 10" but order_by is empty and limit is not set
 ```
 
-This structured feedback consistently achieves a ≥ 95% first-retry correction rate with capable models.
+Retry behavior depends on the selected model and schema. Measure correction rate on your own
+regression set before choosing retry limits for production.
