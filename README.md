@@ -43,3 +43,4 @@ publishes official releases and the official `intentql` package to PyPI.
 ## License
 
 This documentation project is licensed under the [Apache License 2.0](LICENSE).
+
