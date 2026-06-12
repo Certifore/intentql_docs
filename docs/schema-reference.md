@@ -1,245 +1,292 @@
-# Schema Reference
+# IntentQL Analytics Cookbook
 
-`schema.yaml` is the **allowlist** that the IntentQL compiler enforces. Only tables and columns declared here are reachable by the LLM or any QueryPlan. Anything not listed causes the compiler to raise a `QueryPlanError` — there is no silent fallthrough, no dynamic DB introspection.
-
-!!! tip "Quick start"
-    Copy the [Northwind example](getting-started.md) in Getting Started and adapt it to your database. You only need `tables` and `links` to get going.
+This cookbook provides practical examples of common analytical questions, their underlying schema configurations, the generated `QueryPlan` syntax, and the compiled parameterized SQL output.
 
 ---
 
-## Top-Level Structure
+## 1. Detail & Lookup Queries
+**Scenario:** Fetching specific attributes for a single entity or filtering down to micro-level details.
 
-```yaml
-version: 1          # always 1
-dialect: postgres   # always postgres for now
+### Question
+"Show me the email, registration date, and subscription status for user ID 45021."
 
-tables:
-  - ...
-
-links:
-  - ...
-```
-
----
-
-## Tables
-
-Each entry under `tables` maps a **logical name** (what the LLM and QueryPlan use) to a **physical name** (what Postgres actually has).
-
-```yaml
-tables:
-  - name: orders               # (required) logical name — used in QueryPlan "dataset" and field refs
-    db_table: orders           # (required) physical table name in Postgres
-    description: "Customer orders placed through the storefront"  # (optional) shown to LLM
-    primary_id: order_id       # (optional) primary key logical name — used by semantic lint Rule 5
-
-    columns:
-      - name: order_id         # (required) logical column name
-        db_column: order_id    # (required) physical column name in Postgres
-        type: integer          # (optional) type hint — see supported types below
-        description: "Unique order identifier"  # (optional) shown to LLM
-```
-
-### Supported `type` Values
-
-| Type string | Postgres type |
-|---|---|
-| `integer`, `int` | `INTEGER` |
-| `bigint` | `BIGINT` |
-| `float`, `double` | `FLOAT` |
-| `numeric`, `decimal` | `NUMERIC` |
-| `varchar`, `text`, `string` | `TEXT` |
-| `boolean`, `bool` | `BOOLEAN` |
-| `date` | `DATE` |
-| `timestamp`, `datetime` | `TIMESTAMP` |
-| `uuid` | `UUID` |
-| `json`, `jsonb` | `JSONB` |
-
-Unknown type strings fall back to `TEXT`.
-
-### Quoted Identifiers
-
-If your physical table or column name contains uppercase letters, spaces, or reserved words, IntentQL will automatically double-quote it in the generated SQL. You can also force quoting by wrapping the name in the YAML string:
-
-```yaml
-- name: user_events
-  db_table: '"UserEvents"'   # becomes FROM "UserEvents" in SQL
-  columns:
-    - name: event_type
-      db_column: '"EventType"'
-```
-
-### `primary_id`
-
-The `primary_id` field names the primary key column's **logical name**. It is used by:
-
-1. **Intent pipeline** — the plan builder uses `count_distinct(primary_id)` instead of `count(*)` for accurate counting.
-2. **Semantic lint Rule 5** — verifies that "how many" questions use `count_distinct` on the primary key.
-3. **Spec builder** — auto-generates correct `count_distinct(primary_id)` examples in the LLM prompt.
-
-It is not required, but recommended for any table you expect users to ask "how many X" questions about.
-
-### `primary_date`
-
-The `primary_date` field names the date column used for time range filters. When the user asks about "last year" or "last 30 days," the intent pipeline maps the time range to date filters on this column.
-
-```yaml
-- name: work_orders
-  db_table: '"finalWorkOrders"'
-  primary_id: work_order_id
-  primary_date: created_date
-```
-
-Without `primary_date`, time range mentions in questions are silently ignored.
-
-### `keyword_search_or` (optional)
-
-Optional list of **logical** column names (at least two). When present, it tells the LLM and **semantic lint** that keyword-style questions should use **OR** (`ILIKE`-style `contains` on each column), not a single column. Declare only the columns that should participate in that OR; omit this key (or list a single column) if searches are intentionally one-column.
-
-```yaml
-- name: work_orders
-  db_table: finalWorkOrder
-  keyword_search_or:
-    - work_order_description
-    - long_desc
-    - shop_name
-  columns:
-    - ...
-```
-
-If `keyword_search_or` has two or more names and a plan uses legacy `contains` on any of those columns without an advanced `where` with `or` covering **all** of them, semantic lint flags a retry. A plan that puts **two or more** legacy `contains` filters on *different* keyword columns is especially wrong: legacy filters are **AND**ed, so each row must satisfy every predicate — narrower than OR and not the usual “keyword in any of these fields” intent.
-
----
-
-## Links
-
-Links declare join relationships between tables. The compiler uses these when `auto_inject_joins` is active, or when the QueryPlan explicitly names a link.
-
-```yaml
-links:
-  - name: orders_to_customers          # (required) unique link name
-    from_table: orders                 # (required) logical table name — must exist in tables
-    to_table: customers                # (required) logical table name — must exist in tables
-    join_type: left                    # (optional) "left" (default) or "inner"
-    "on":                              # (required) must be quoted! see warning below
-      - left: orders.customer_id       # logical qualified column from `from_table`
-        op: "="                        # currently only "=" is supported
-        right: customers.customer_id   # logical qualified column from `to_table`
-    optional: true                     # (optional) default true — whether the join is LEFT or INNER
-```
-
-!!! warning "`on:` must always be quoted"
-    `on` is a YAML 1.1 reserved word that parses as boolean `true`. Always write `"on":` (with double quotes). IntentQL's schema validator will raise a `SchemaError` with a helpful message if it detects this issue.
-
-    ```yaml
-    # WRONG — parsed as boolean true
-    links:
-      - name: orders_to_customers
-        on:
-          - left: orders.customer_id
-
-    # CORRECT
-    links:
-      - name: orders_to_customers
-        "on":
-          - left: orders.customer_id
-    ```
-
-### Multi-Column Joins
-
-For composite keys, list multiple conditions under `"on":`:
-
-```yaml
-links:
-  - name: order_details_join
-    from_table: order_details
-    to_table: orders
-    join_type: inner
-    "on":
-      - left: order_details.order_id
-        op: "="
-        right: orders.order_id
-```
-
-### Bidirectional Traversal
-
-Links are stored bidirectionally — `auto_inject_joins` can traverse them in either direction to find the shortest path between any two tables.
-
----
-
-## Full Example
-
+### Schema Configuration (`schema.yaml`)
 ```yaml
 version: 1
 dialect: postgres
 
 tables:
-  - name: customers
-    db_table: customers
-    description: "Customer master records"
-    primary_id: customer_id
+  - name: users
+    db_table: users
+    description: "Core user accounts and profiles"
+    primary_id: user_id
     columns:
-      - {name: customer_id, db_column: customer_id, type: varchar}
-      - {name: company_name, db_column: company_name, type: varchar}
-      - {name: city, db_column: city, type: varchar}
-      - {name: country, db_column: country, type: varchar}
-
-  - name: orders
-    db_table: orders
-    description: "Orders placed by customers"
-    primary_id: order_id
-    columns:
-      - {name: order_id, db_column: order_id, type: integer}
-      - {name: customer_id, db_column: customer_id, type: varchar}
-      - {name: order_date, db_column: order_date, type: date}
-      - {name: freight, db_column: freight, type: numeric, description: "Shipping cost"}
-      - {name: ship_country, db_column: ship_country, type: varchar}
-
-  - name: order_details
-    db_table: order_details
-    description: "Line items within each order"
-    columns:
-      - {name: order_id, db_column: order_id, type: integer}
-      - {name: product_id, db_column: product_id, type: integer}
-      - {name: unit_price, db_column: unit_price, type: numeric}
-      - {name: quantity, db_column: quantity, type: smallint}
-      - {name: discount, db_column: discount, type: numeric}
-
-links:
-  - name: orders_to_customers
-    from_table: orders
-    to_table: customers
-    join_type: left
-    "on":
-      - left: orders.customer_id
-        op: "="
-        right: customers.customer_id
-
-  - name: order_details_to_orders
-    from_table: order_details
-    to_table: orders
-    join_type: left
-    "on":
-      - left: order_details.order_id
-        op: "="
-        right: orders.order_id
+      - name: user_id
+        db_column: user_id
+        type: integer
+        description: "Unique user account identifier"
+      - name: email
+        db_column: email
+        type: varchar
+        description: "User login email address"
+      - name: created_at
+        db_column: created_at
+        type: timestamp
+        description: "Account registration date"
+      - name: status
+        db_column: status
+        type: varchar
+        description: "Subscription status: active, trialing, canceled"
 ```
 
----
+### Extracted QueryPlan
+```json
+{
+  "version": "1.0",
+  "dataset": "users",
+  "filters": [
+    {
+      "field": "user_id",
+      "op": "=",
+      "value": 45021
+    }
+  ],
+  "dimensions": [
+    {"field": "email"},
+    {"field": "created_at"},
+    {"field": "status"}
+  ],
+  "metrics": [],
+  "order_by": [],
+  "limit": 100
+}
+```
 
-## Schema Validation
+### Compiled SQL
+```sql
+SELECT 
+    email, 
+    created_at, 
+    status 
+FROM users 
+WHERE user_id = :p0 
+LIMIT 100;
+```
 
-When `execute_query_plan` or `load_and_validate_schema` is called, IntentQL validates the schema file and:
+## 2. Trends Over Time
+**Scenario:** Time-series aggregations bucketed by intervals (e.g., daily, monthly) to monitor volume patterns.
 
-- **Raises `SchemaError`** for fatal problems (missing required fields, unknown link tables, invalid `join_type`, `"on"` parsed as boolean)
-- **Prints warnings** for non-fatal issues (e.g. `primary_id` declared but not in the columns list)
+### Question
+"Give me the monthly count of completed orders throughout 2025."
 
-You can run schema validation standalone:
+### Schema Configuration (`schema.yaml`)
+```yaml
+version: 1
+dialect: postgres
 
-```python
-from intentql.api.api import load_and_validate_schema
+tables:
+  - name: orders
+    db_table: orders
+    description: "Customer transactions and order fulfillment records"
+    primary_id: order_id
+    primary_date: order_date
+    columns:
+      - name: order_id
+        db_column: order_id
+        type: integer
+      - name: order_date
+        db_column: order_date
+        type: timestamp
+      - name: status
+        db_column: status
+        type: varchar
 
-schema = load_and_validate_schema("config/schema.yaml")
-# raises SchemaError on fatal issues
-# prints warnings to stdout for non-fatal issues
+```
+### Extracted QueryPlan
+```json
+{
+  "version": "1.0",
+  "dataset": "orders",
+  "filters": [
+    {
+      "field": "status",
+      "op": "=",
+      "value": "completed"
+    },
+    {
+      "field": "order_date",
+      "op": ">=",
+      "value": "2025-01-01T00:00:00"
+    },
+    {
+      "field": "order_date",
+      "op": "<=",
+      "value": "2025-12-31T23:59:59"
+    }
+  ],
+  "dimensions": [
+    {
+      "field": "order_date",
+      "alias": "order_month"
+    }
+  ],
+  "metrics": [
+    {
+      "agg": "count_distinct",
+      "field": "order_id",
+      "alias": "order_count"
+    }
+  ],
+  "order_by": [
+    {
+      "by": "order_month",
+      "dir": "asc"
+    }
+  ],
+  "limit": 100
+}
+```
+
+### Compiled SQL
+```sql
+SELECT 
+    DATE_TRUNC('month', order_date) AS order_month, 
+    COUNT(DISTINCT order_id) AS order_count 
+FROM orders 
+WHERE status = :p0 
+  AND order_date >= :p1 
+  AND order_date <= :p2 
+GROUP BY DATE_TRUNC('month', order_date) 
+ORDER BY order_month ASC 
+LIMIT 100;
+```
+## 3. Ratios & Percentages
+**Scenario:** Calculating performance or operational metrics by dividing a specific subset by a total dataset.
+
+### Question
+"What is the cancellation rate of our items?"
+
+### Schema Configuration (`schema.yaml`)
+```yaml
+version: 1
+dialect: postgres
+
+tables:
+  - name: line_items
+    db_table: line_items
+    description: "Individual product lines tied to transactions"
+    primary_id: item_id
+    columns:
+      - name: item_id
+        db_column: item_id
+        type: integer
+      - name: fulfillment_status
+        db_column: fulfillment_status
+        type: varchar
+```
+### Extracted QueryPlan
+```json
+{
+  "version": "1.0",
+  "dataset": "line_items",
+  "filters": [],
+  "dimensions": [],
+  "metrics": [
+    {
+      "agg": "sum",
+      "field": "CASE WHEN fulfillment_status = 'cancelled' THEN 1 ELSE 0 END",
+      "alias": "cancelled_count"
+    },
+    {
+      "agg": "count_distinct",
+      "field": "item_id",
+      "alias": "total_items"
+    }
+  ],
+  "rollup": {
+    "metrics": [
+      {
+        "agg": "avg",
+        "field": "cancelled_count / NULLIF(total_items, 0)",
+        "alias": "cancellation_rate"
+      }
+    ],
+    "limit": 1
+  },
+  "order_by": []
+}
+```
+### Compiled SQL
+```sql
+WITH _inner AS (
+    SELECT 
+        SUM(CASE WHEN fulfillment_status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_count,
+        COUNT(DISTINCT item_id) AS total_items
+    FROM line_items
+)
+SELECT 
+    cancelled_count::NUMERIC / NULLIF(total_items, 0) AS cancellation_rate
+FROM _inner
+LIMIT 1;
+```
+## 4. Ranked Aggregate Queries
+**Scenario:** Finding top or bottom performers using groups, sorting, and row limits.
+### Question
+"Who are the top 5 clients by total spend?"
+
+### Schema Configuration (`schema.yaml`)
+```yaml
+version: 1
+dialect: postgres
+
+tables:
+  - name: invoices
+    db_table: invoices
+    description: "Billing invoices issued to clients"
+    primary_id: invoice_id
+    columns:
+      - name: invoice_id
+        db_column: invoice_id
+        type: integer
+      - name: client_name
+        db_column: client_name
+        type: varchar
+      - name: amount_usd
+        db_column: amount_usd
+        type: numeric
+```
+### Extracted QueryPlan
+```json
+{
+  "version": "1.0",
+  "dataset": "invoices",
+  "filters": [],
+  "dimensions": [
+    {"field": "client_name"}
+  ],
+  "metrics": [
+    {
+      "agg": "sum",
+      "field": "amount_usd",
+      "alias": "total_spend"
+    }
+  ],
+  "order_by": [
+    {
+      "by": "total_spend",
+      "dir": "desc"
+    }
+  ],
+  "limit": 5
+}
+```
+### Compiled SQL
+```sql
+SELECT 
+    client_name, 
+    SUM(amount_usd) AS total_spend 
+FROM invoices 
+GROUP BY client_name 
+ORDER BY total_spend DESC 
+LIMIT 5;
 ```

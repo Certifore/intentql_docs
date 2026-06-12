@@ -12,45 +12,50 @@ This cookbook provides practical examples of common analytical questions, their 
 
 ### Schema Configuration (`schema.yaml`)
 ```yaml
-tables:
-  users:
-    description: "Core user accounts and profiles"
-    columns:
-      user_id: { type: "INTEGER", primary_key: true }
-      email: { type: "VARCHAR", description: "User login email address" }
-      created_at: { type: "TIMESTAMP", description: "Account registration date" }
-      status: { type: "VARCHAR", description: "Subscription status: active, trialing, canceled" }
-```
+version: 1
+dialect: postgres
 
-### Extracted QueryPlan
-```json
-{
-  "target_table": "users",
-  "operation": "SELECT",
-  "select_columns": ["email", "created_at", "status"],
+tables:
+  - name: users
+    db_table: users
+    description: "Core user accounts and profiles"
+    primary_id: user_id
+    columns:
+      - name: user_id
+        db_column: user_id
+        type: integer
+      - name: email
+        db_column: email
+        type: varchar
+        description: "User login email address"
+      - name: created_at
+        db_column: created_at
+        type: timestamp
+        description: "Account registration date"
+      - name: status
+        db_column: status
+        type: varchar
+        description: "Subscription status: active, trialing, canceled"
+        {
+  "version": "1.0",
+  "dataset": "users",
+  "dimensions": [
+    {"field": "users.email", "alias": "email"},
+    {"field": "users.created_at", "alias": "created_at"},
+    {"field": "users.status", "alias": "status"}
+  ],
+  "metrics": [],
   "filters": [
     {
-      "column": "user_id",
-      "operator": "EQUALS",
+      "field": "users.user_id",
+      "op": "=",
       "value": 45021
     }
-  ]
+  ],
+  "order_by": [],
+  "limit": 100
 }
-```
-
-### Compiled SQL
-```sql
-SELECT 
-    email, 
-    created_at, 
-    status 
-FROM users 
-WHERE user_id = :param_1;
-```
-
----
-
-## 2. Trends Over Time
+## 1. Detail & Lookup Queries
 **Scenario:** Time-series aggregations bucketed by intervals (e.g., daily, monthly) to monitor volume patterns.
 
 ### Question
@@ -58,132 +63,54 @@ WHERE user_id = :param_1;
 
 ### Schema Configuration (`schema.yaml`)
 ```yaml
-tables:
-  orders:
-    description: "Customer transactions and order fulfillment records"
-    columns:
-      order_id: { type: "INTEGER", primary_key: true }
-      order_date: { type: "TIMESTAMP", description: "When the order was placed" }
-      status: { type: "VARCHAR", description: "Fulfillment state: completed, pending, refunded" }
-```
+version: 1
+dialect: postgres
 
-### Extracted QueryPlan
-```json
-{
-  "target_table": "orders",
-  "operation": "AGGREGATE",
-  "aggregations": [
-    { "function": "COUNT", "column": "order_id", "alias": "order_count" }
-  ],
+tables:
+  - name: orders
+    db_table: orders
+    description: "Customer transactions and order fulfillment records"
+    primary_id: order_id
+    primary_date: order_date
+    columns:
+      - name: order_id
+        db_column: order_id
+        type: integer
+      - name: order_date
+        db_column: order_date
+        type: timestamp
+        description: "When the order was placed"
+      - name: status
+        db_column: status
+        type: varchar
+        description: "Fulfillment state: completed, pending, refunded"
+
+        {
+  "version": "1.0",
+  "dataset": "orders",
   "dimensions": [
-    { "column": "order_date", "time_bucket": "MONTH" }
+    {"field": "orders.order_date", "alias": "order_date_month"}
+  ],
+  "metrics": [
+    {"agg": "count_distinct", "field": "orders.order_id", "alias": "order_count"}
   ],
   "filters": [
-    { "column": "status", "operator": "EQUALS", "value": "completed" },
-    { "column": "order_date", "operator": "GREATER_THAN_OR_EQUAL", "value": "2025-01-01" },
-    { "column": "order_date", "operator": "LESS_THAN_OR_EQUAL", "value": "2025-12-31" }
+    { "field": "orders.status", "op": "=", "value": "completed" },
+    { "field": "orders.order_date", "op": ">=", "value": "2025-01-01" },
+    { "field": "orders.order_date", "op": "<=", "value": "2025-12-31" }
   ],
-  "sort": [{ "column": "order_date", "direction": "ASC" }]
+  "order_by": [
+    { "by": "order_date_month", "dir": "asc" }
+  ],
+  "limit": 100
 }
-```
 
-### Compiled SQL
-```sql
 SELECT 
     DATE_TRUNC('month', order_date) AS order_date_month, 
-    COUNT(order_id) AS order_count 
+    COUNT(DISTINCT order_id) AS order_count 
 FROM orders 
 WHERE status = :param_1 
   AND order_date >= :param_2 
   AND order_date <= :param_3 
 GROUP BY DATE_TRUNC('month', order_date) 
 ORDER BY order_date_month ASC;
-```
-
----
-
-## 3. Ratios & Percentages
-**Scenario:** Calculating performance or operational metrics by dividing a specific subset by a total dataset.
-
-### Question
-"What is the cancellation rate of our items?"
-
-### Schema Configuration (`schema.yaml`)
-```yaml
-tables:
-  line_items:
-    description: "Individual product lines tied to transactions"
-    columns:
-      item_id: { type: "INTEGER", primary_key: true }
-      fulfillment_status: { type: "VARCHAR", description: "Status: shipped, processing, cancelled" }
-```
-
-### Extracted QueryPlan
-```json
-{
-  "target_table": "line_items",
-  "operation": "AGGREGATE",
-  "aggregations": [
-    {
-      "function": "RATIO",
-      "numerator_filter": { "column": "fulfillment_status", "operator": "EQUALS", "value": "cancelled" },
-      "denominator_column": "item_id",
-      "alias": "cancellation_rate"
-    }
-  ]
-}
-```
-
-### Compiled SQL
-```sql
-SELECT 
-    COUNT(CASE WHEN fulfillment_status = :param_1 THEN 1 END)::NUMERIC / 
-    NULLIF(COUNT(item_id), 0) AS cancellation_rate 
-FROM line_items;
-```
-
----
-
-## 4. Ranked Aggregate Queries
-**Scenario:** Finding top or bottom performers using groups, sorting, and row limits.
-
-### Question
-"Who are the top 5 clients by total spend?"
-
-### Schema Configuration (`schema.yaml`)
-```yaml
-tables:
-  invoices:
-    description: "Billing invoices issued to clients"
-    columns:
-      invoice_id: { type: "INTEGER", primary_key: true }
-      client_name: { type: "VARCHAR", description: "The name of the corporate client" }
-      amount_usd: { type: "NUMERIC", description: "Gross total invoice amount in USD" }
-```
-
-### Extracted QueryPlan
-```json
-{
-  "target_table": "invoices",
-  "operation": "AGGREGATE",
-  "dimensions": ["client_name"],
-  "aggregations": [
-    { "function": "SUM", "column": "amount_usd", "alias": "total_spend" }
-  ],
-  "sort": [
-    { "column": "total_spend", "direction": "DESC" }
-  ],
-  "limit": 5
-}
-```
-
-### Compiled SQL
-```sql
-SELECT 
-    client_name, 
-    SUM(amount_usd) AS total_spend 
-FROM invoices 
-GROUP BY client_name 
-ORDER BY total_spend DESC 
-LIMIT 5;
-```
