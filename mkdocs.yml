@@ -114,6 +114,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Analytics Cookbook: cookbook.md
   - Architecture:
       - Why a Compiler: architecture.md
       - Core Concepts: concepts.md
