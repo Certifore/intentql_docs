@@ -1,10 +1,10 @@
-# IntentQL Documentation
+# GroundedQL Documentation
 
-Documentation, benchmarks, and guides for [IntentQL](https://github.com/Certifore/intentql).
+Documentation, benchmarks, and guides for [GroundedQL](https://github.com/Certifore/groundedql).
 
-## What is IntentQL?
+## What is GroundedQL?
 
-IntentQL is an open-source semantic compiler for natural-language analytics over Postgres.
+GroundedQL is an open-source semantic compiler for natural-language analytics over Postgres.
 A model proposes semantic hints; deterministic infrastructure resolves those hints against
 an allowlisted schema, builds a typed QueryPlan, validates it, and compiles parameterized
 SQL.
@@ -38,7 +38,7 @@ Then open `http://localhost:8000`.
 
 Contributions are proposed through pull requests. Alexander Abakah, the lead maintainer,
 reviews and merges changes into the official repository and is the only person who
-publishes official releases and the official `intentql` package to PyPI.
+publishes official releases and the official `groundedql` package to PyPI.
 
 ## License
 

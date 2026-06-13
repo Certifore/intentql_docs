@@ -1,9 +1,9 @@
-site_name: IntentQL
+site_name: GroundedQL
 site_description: An open-source semantic compiler for reliable natural-language analytics over Postgres.
 site_author: Alexander Abakah
-site_url: https://certifore.github.io/intentql_docs
-repo_url: https://github.com/Certifore/intentql
-repo_name: Certifore/intentql
+site_url: https://certifore.github.io/groundedql_docs
+repo_url: https://github.com/Certifore/groundedql
+repo_name: Certifore/groundedql
 copyright: Copyright &copy; 2026 Alexander Abakah
 
 theme:
@@ -52,11 +52,11 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Certifore/intentql
-      name: IntentQL on GitHub
+      link: https://github.com/Certifore/groundedql
+      name: GroundedQL on GitHub
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/intentql/
-      name: IntentQL on PyPI
+      link: https://pypi.org/project/groundedql/
+      name: GroundedQL on PyPI
   analytics:
     feedback:
       title: Was this page helpful?

@@ -1,9 +1,9 @@
 # Exception Reference
 
-IntentQL uses a structured exception hierarchy. All exceptions inherit from `DSLCompilerError`, making it easy to catch all library errors in one place or handle each type separately.
+GroundedQL uses a structured exception hierarchy. All exceptions inherit from `DSLCompilerError`, making it easy to catch all library errors in one place or handle each type separately.
 
 ```python
-from intentql import (
+from groundedql import (
     DSLCompilerError,
     SchemaError,
     QueryPlanError,
@@ -31,13 +31,13 @@ Exception
 
 ## `DSLCompilerError`
 
-Base class for all IntentQL exceptions. Catch this to handle any library error in one place:
+Base class for all GroundedQL exceptions. Catch this to handle any library error in one place:
 
 ```python
 try:
-    result = intentql.execute_query_plan(...)
-except intentql.DSLCompilerError as e:
-    print(f"IntentQL error: {e}")
+    result = groundedql.execute_query_plan(...)
+except groundedql.DSLCompilerError as e:
+    print(f"GroundedQL error: {e}")
 ```
 
 ---
@@ -56,8 +56,8 @@ Raised when `schema.yaml` is missing, malformed, or contains invalid configurati
 
 ```python
 try:
-    schema = intentql.load_and_validate_schema("config/schema.yaml")
-except intentql.SchemaError as e:
+    schema = groundedql.load_and_validate_schema("config/schema.yaml")
+except groundedql.SchemaError as e:
     print(f"Fix your schema.yaml: {e}")
 ```
 
@@ -84,7 +84,7 @@ except intentql.SchemaError as e:
 
 Raised when a QueryPlan is structurally or semantically invalid. This is the most common exception during development.
 
-`execute_query_plan` and the low-level `Compiler` now raise the same public `intentql.exceptions.QueryPlanError` class, so application code can catch one type consistently.
+`execute_query_plan` and the low-level `Compiler` now raise the same public `groundedql.exceptions.QueryPlanError` class, so application code can catch one type consistently.
 
 **Constructor:**
 
@@ -128,19 +128,19 @@ error.to_dict()
 ```python
 try:
     sql, params = Compiler(schema).compile({"dataset": "nonexistent", ...})
-except intentql.QueryPlanError as e:
+except groundedql.QueryPlanError as e:
     print(e.code)       # "INVALID_PLAN"
     print(e.path)       # "$.dataset"
     print(e.message)    # "Unknown dataset: nonexistent"
 ```
 
 !!! tip "Designed for LLM retry feedback"
-    `QueryPlanError` is serializable by design. When using `plan_with_retry`, IntentQL feeds the error dict back to the LLM automatically. In a custom retry loop:
+    `QueryPlanError` is serializable by design. When using `plan_with_retry`, GroundedQL feeds the error dict back to the LLM automatically. In a custom retry loop:
 
     ```python
     try:
         sql, params = compiler.compile(plan)
-    except intentql.QueryPlanError as e:
+    except groundedql.QueryPlanError as e:
         error_context = e.to_dict()
         # Append error_context to your next LLM message
     ```
@@ -212,8 +212,8 @@ DatabaseExecutionError(
 
 ```python
 try:
-    result = intentql.execute_query_plan(engine=engine, ..., raise_on_error=True)
-except intentql.DatabaseExecutionError as e:
+    result = groundedql.execute_query_plan(engine=engine, ..., raise_on_error=True)
+except groundedql.DatabaseExecutionError as e:
     print(f"DB error: {e.message}")
     print(f"SQL: {e.sql}")
     print(f"Caused by: {e.original}")
@@ -241,30 +241,30 @@ QueryCostError(message: str, *, estimated_cost: float | None = None)
 Recommended pattern for a web API endpoint using `raise_on_error=True`:
 
 ```python
-import intentql
+import groundedql
 
 def handle_question(question: str) -> dict:
     try:
         plan = planner.plan_with_retry(question)
-        return intentql.execute_query_plan(
+        return groundedql.execute_query_plan(
             engine=engine,
             schema_path="config/schema.yaml",
             query_plan=plan,
             raise_on_error=True,
         )
 
-    except intentql.QueryPlanError as e:
+    except groundedql.QueryPlanError as e:
         # LLM generated an invalid plan; all retries exhausted
         # Safe to surface the error code to the client
         return {"error": "invalid_query", "detail": e.message, "code": e.code}
 
-    except intentql.DatabaseExecutionError as e:
+    except groundedql.DatabaseExecutionError as e:
         # Valid SQL but DB rejected it (timeout, permissions, type error)
         # Log e.sql for debugging; do NOT surface raw SQL to end users
         logger.error("DB execution failed", sql=e.sql, cause=str(e.original))
         return {"error": "execution_failed", "detail": "Query failed. Please try again."}
 
-    except intentql.SchemaError as e:
+    except groundedql.SchemaError as e:
         # Configuration error — should never reach production if schema is tested at startup
         logger.critical("Schema configuration error", error=str(e))
         return {"error": "configuration_error", "detail": "Internal error"}

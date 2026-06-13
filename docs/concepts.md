@@ -1,12 +1,12 @@
 # Core Concepts
 
-Understanding how IntentQL works end-to-end will help you configure it correctly and debug issues when they arise.
+Understanding how GroundedQL works end-to-end will help you configure it correctly and debug issues when they arise.
 
 <div class="qce-path-grid" markdown>
 <a class="qce-path-card" href="getting-started/">
   <span class="qce-path-card__kicker">Step 1</span>
   <span class="qce-path-card__title">Getting Started</span>
-  <span class="qce-path-card__desc">Install IntentQL, define schema allowlists, and run your first execution path.</span>
+  <span class="qce-path-card__desc">Install GroundedQL, define schema allowlists, and run your first execution path.</span>
   <span class="qce-path-card__cta">Open guide -></span>
 </a>
 <a class="qce-path-card" href="query-plan-reference/">
@@ -24,13 +24,13 @@ Understanding how IntentQL works end-to-end will help you configure it correctly
 </div>
 
 !!! abstract "TL;DR"
-    IntentQL separates **intent** (what data you want) from **execution** (how to fetch it). The LLM extracts a lightweight `QueryIntent`; deterministic code normalizes it, validates it against real database values, and builds a `QueryPlan`; the compiler turns that plan into parameterized SQL. The layers never mix.
+    GroundedQL separates **intent** (what data you want) from **execution** (how to fetch it). The LLM extracts a lightweight `QueryIntent`; deterministic code normalizes it, validates it against real database values, and builds a `QueryPlan`; the compiler turns that plan into parameterized SQL. The layers never mix.
 
 ---
 
 ## The Two-Stage Pipeline
 
-IntentQL uses a **two-stage architecture** that minimizes LLM responsibility and maximizes determinism:
+GroundedQL uses a **two-stage architecture** that minimizes LLM responsibility and maximizes determinism:
 
 ```
 Natural language question
@@ -119,7 +119,7 @@ The key insight: **the LLM only decides _what_ the user wants (intent), never _h
 
 ## Why Two Stages?
 
-The original IntentQL architecture asked the LLM to produce a full `QueryPlan` directly. This worked for simple queries but had a fundamental consistency problem: the same question phrased differently could produce structurally different plans, leading to different SQL and different results.
+The original GroundedQL architecture asked the LLM to produce a full `QueryPlan` directly. This worked for simple queries but had a fundamental consistency problem: the same question phrased differently could produce structurally different plans, leading to different SQL and different results.
 
 The two-stage architecture solves this by:
 
@@ -156,7 +156,7 @@ The value index serves three purposes:
 The index is built once at server startup and shared across all user sessions. It only rebuilds on server restart, which naturally picks up data changes.
 
 !!! tip "Which columns get indexed?"
-    IntentQL indexes `varchar`/`text` columns that are likely categorical — building names, status codes, priority codes, asset keywords. It skips free-text columns (descriptions, comments) and high-cardinality ID columns. See `value_index._get_indexable_columns()` for the heuristic.
+    GroundedQL indexes `varchar`/`text` columns that are likely categorical — building names, status codes, priority codes, asset keywords. It skips free-text columns (descriptions, comments) and high-cardinality ID columns. See `value_index._get_indexable_columns()` for the heuristic.
 
 ---
 
@@ -176,7 +176,7 @@ These rules ensure that no matter how the LLM structures the intent, the normali
 
 ## Few-Shot Memory (IntentMemory)
 
-The `IntentMemory` is IntentQL's learning mechanism. Every time a query succeeds, the (question, normalized_intent) pair is stored in a ChromaDB vector database. When a new question comes in:
+The `IntentMemory` is GroundedQL's learning mechanism. Every time a query succeeds, the (question, normalized_intent) pair is stored in a ChromaDB vector database. When a new question comes in:
 
 1. The question is embedded using `text-embedding-3-small`.
 2. ChromaDB finds the most similar past questions (cosine similarity).
@@ -351,7 +351,7 @@ sql, params = Compiler(schema).compile(plan)
 
 This prevents filter values from being interpreted as SQL within the compiler execution
 path. Applications must still protect database credentials, connection policy, and any SQL
-executed outside IntentQL.
+executed outside GroundedQL.
 
 ---
 
@@ -364,7 +364,7 @@ This needs two layers:
 1. **Inner query** — sum order value per customer
 2. **Outer query** — average those sums
 
-IntentQL models this with `rollup`:
+GroundedQL models this with `rollup`:
 
 ```json
 {
@@ -384,7 +384,7 @@ The compiler wraps the inner query in a CTE and applies the outer aggregation ov
 
 ## Auto Join Injection
 
-When a plan references columns from multiple tables, IntentQL automatically computes and injects the join path using BFS over the `links` graph in `schema.yaml`.
+When a plan references columns from multiple tables, GroundedQL automatically computes and injects the join path using BFS over the `links` graph in `schema.yaml`.
 
 !!! tip "Explicit joins override auto-injection"
     If you declare joins in the plan's `joins` array, auto-injection is skipped for that plan.
@@ -396,7 +396,7 @@ When a plan references columns from multiple tables, IntentQL automatically comp
 The spec builder auto-generates the LLM's system prompt from your `schema.yaml`:
 
 ```bash
-python -m intentql.spec_builder \
+python -m groundedql.spec_builder \
   --schema config/schema.yaml \
   --output config/queryplan_spec_generated.yaml
 ```
@@ -408,12 +408,12 @@ python -m intentql.spec_builder \
 
 ## Legacy Pipeline
 
-IntentQL retains the original "LLM generates full QueryPlan" pipeline as a fallback. If the intent pipeline fails for any reason, `QueryAgent` automatically falls back to the legacy pipeline with retry + autofix.
+GroundedQL retains the original "LLM generates full QueryPlan" pipeline as a fallback. If the intent pipeline fails for any reason, `QueryAgent` automatically falls back to the legacy pipeline with retry + autofix.
 
 You can also force the legacy pipeline:
 
 ```python
-agent = intentql.QueryAgent(
+agent = groundedql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",

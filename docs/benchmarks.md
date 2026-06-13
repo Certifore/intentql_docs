@@ -1,6 +1,6 @@
 # Benchmarks
 
-IntentQL is evaluated at two different layers:
+GroundedQL is evaluated at two different layers:
 
 1. **Compiler properties** test guarantees that should not depend on an LLM.
 2. **End-to-end semantic accuracy** tests whether the complete system returns the expected
@@ -20,7 +20,7 @@ The repository includes deterministic, no-database checks for core safety proper
 | Deterministic compilation | 20 / 20 | Recompiling the same plan produces identical SQL |
 | Hallucination rejection | 30 / 30 | Unknown tables and columns fail validation |
 
-These are focused tests maintained by the IntentQL project. They demonstrate architectural
+These are focused tests maintained by the GroundedQL project. They demonstrate architectural
 properties, not broad natural-language accuracy.
 
 ### BIRD Mini-Dev development evaluation
@@ -28,7 +28,7 @@ properties, not broad natural-language accuracy.
 [BIRD-SQL](https://bird-bench.github.io/) is a cross-domain text-to-SQL benchmark containing
 natural-language questions, database schemas, evidence, gold SQL, and executable databases.
 
-The current IntentQL development run covers a 130-case sequential slice of Mini-Dev
+The current GroundedQL development run covers a 130-case sequential slice of Mini-Dev
 (case IDs 20 through 149):
 
 | Evaluated cases | Exact execution matches | Development accuracy |
@@ -45,12 +45,12 @@ The current IntentQL development run covers a 130-case sequential slice of Mini-
 For each case, the benchmark runner:
 
 1. loads the question, database ID, evidence, and gold SQL;
-2. gives the question, schema, and evidence to the configured IntentQL pipeline;
-3. compiles and executes IntentQL's plan;
+2. gives the question, schema, and evidence to the configured GroundedQL pipeline;
+3. compiles and executes GroundedQL's plan;
 4. executes the gold SQL against the same Postgres database;
 5. compares the returned values while ignoring row order by default.
 
-IntentQL is scored on **execution result equality**, not SQL string similarity. Different SQL
+GroundedQL is scored on **execution result equality**, not SQL string similarity. Different SQL
 is accepted when it returns the same answer.
 
 ## How We Treat Mismatches
@@ -88,7 +88,7 @@ previously correct behavior.
 
 ## Reproduce the Property Tests
 
-From the IntentQL repository:
+From the GroundedQL repository:
 
 ```bash
 python test/test_main.py lint
@@ -97,7 +97,7 @@ python test/test_generic_planner_resolution.py
 
 ## Reproduce BIRD Mini-Dev
 
-BIRD data is downloaded separately and is not bundled with IntentQL.
+BIRD data is downloaded separately and is not bundled with GroundedQL.
 
 ```bash
 python test/benchmark/bird_minidev.py --dry-run --limit 10

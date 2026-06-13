@@ -4,12 +4,12 @@
 
 <div class="qce-hero__eyebrow">Open-source semantic compiler</div>
 
-<h1 class="qce-hero__title">IntentQL</h1>
+<h1 class="qce-hero__title">GroundedQL</h1>
 
 <p class="qce-hero__lead">Reliable natural-language analytics without giving an LLM control of your database.</p>
 
 <p class="qce-hero__subtitle">
-IntentQL lets a model provide semantic hints, then uses schema-aware deterministic
+GroundedQL lets a model provide semantic hints, then uses schema-aware deterministic
 infrastructure to resolve those hints into a typed plan, validate it, and compile
 parameterized Postgres SQL. The model interprets language. The compiler owns execution.
 </p>
@@ -17,7 +17,7 @@ parameterized Postgres SQL. The model interprets language. The compiler owns exe
 <div class="qce-hero__actions">
   <a href="getting-started/" class="qce-btn qce-btn--primary">Get started</a>
   <a href="architecture/" class="qce-btn qce-btn--outline">Why a compiler?</a>
-  <a href="https://github.com/Certifore/intentql" class="qce-btn qce-btn--outline">View source</a>
+  <a href="https://github.com/Certifore/groundedql" class="qce-btn qce-btn--outline">View source</a>
 </div>
 
 <div class="qce-badges">
@@ -30,7 +30,7 @@ parameterized Postgres SQL. The model interprets language. The compiler owns exe
 
 </div>
 
-<div class="qce-pipeline" aria-label="IntentQL pipeline">
+<div class="qce-pipeline" aria-label="GroundedQL pipeline">
   <div class="qce-pipeline__step">
     <span class="qce-pipeline__num">01</span>
     <strong>Interpret</strong>
@@ -56,15 +56,15 @@ parameterized Postgres SQL. The model interprets language. The compiler owns exe
   </div>
 </div>
 
-## Why IntentQL Exists
+## Why GroundedQL Exists
 
 Text-to-SQL systems often make a probabilistic model responsible for interpretation,
 schema selection, joins, SQL syntax, and safety at the same time. When the answer is wrong,
 it is difficult to tell which responsibility failed.
 
-IntentQL introduces a semantic compiler between the model and the database.
+GroundedQL introduces a semantic compiler between the model and the database.
 
-| Raw model-generated SQL | IntentQL |
+| Raw model-generated SQL | GroundedQL |
 |---|---|
 | Model produces executable SQL | Model output is treated as untrusted hints |
 | Schema policy lives in a prompt | Tables and columns are checked against an allowlist |
@@ -73,7 +73,7 @@ IntentQL introduces a semantic compiler between the model and the database.
 | Model and prompt changes alter everything | Compiler behavior is independently testable |
 | Invalid guesses may look plausible | Unknown references fail validation |
 
-IntentQL does not claim that a compiler makes language unambiguous. It makes the boundary
+GroundedQL does not claim that a compiler makes language unambiguous. It makes the boundary
 between uncertain interpretation and database execution explicit, inspectable, and testable.
 
 ## Current Evidence
@@ -139,13 +139,13 @@ methodology, caveats, and publication standard.
 ## Quick Start
 
 ```bash
-pip install intentql
-intentql init --db "postgresql://user:pass@host/db"
+pip install groundedql
+groundedql init --db "postgresql://user:pass@host/db"
 ```
 
 ```python
 from sqlalchemy import create_engine
-from intentql.agent import QueryAgent
+from groundedql.agent import QueryAgent
 
 engine = create_engine("postgresql+psycopg2://user:pass@host/db")
 
@@ -160,7 +160,7 @@ print(result["rows"])
 print(result["sql"])
 ```
 
-IntentQL can also validate and execute hand-written `QueryPlan` objects without any model.
+GroundedQL can also validate and execute hand-written `QueryPlan` objects without any model.
 See [Getting Started](getting-started.md) for setup and provider configuration.
 
 ## Open By Design
@@ -169,7 +169,7 @@ The public core includes the semantic plan formats, schema resolver, planner, va
 compiler, executor, adapters, and benchmark harnesses. You can run it locally against your
 own model and database.
 
-IntentQL is licensed under Apache License 2.0. Contributions are proposed through pull
+GroundedQL is licensed under Apache License 2.0. Contributions are proposed through pull
 requests and become part of the official project after review and merge by the lead
 maintainer.
 
@@ -193,7 +193,7 @@ maintainer.
 <a class="qce-path-card" href="query-plan-reference/">
   <span class="qce-path-card__kicker">Reference</span>
   <span class="qce-path-card__title">QueryPlan grammar</span>
-  <span class="qce-path-card__desc">Explore the typed intermediate representation compiled by IntentQL.</span>
+  <span class="qce-path-card__desc">Explore the typed intermediate representation compiled by GroundedQL.</span>
   <span class="qce-path-card__cta">Open reference →</span>
 </a>
 <a class="qce-path-card" href="open-source/">

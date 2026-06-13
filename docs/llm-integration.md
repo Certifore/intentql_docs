@@ -1,13 +1,13 @@
 # LLM Integration
 
-IntentQL is **LLM-agnostic**. The `make_llm_client()` factory supports built-in provider
+GroundedQL is **LLM-agnostic**. The `make_llm_client()` factory supports built-in provider
 strings, compatible OpenAI and LangChain clients, custom callables, and objects implementing
-IntentQL's small `generate_json` interface.
+GroundedQL's small `generate_json` interface.
 
 <div class="qce-path-grid" markdown>
 <a class="qce-path-card" href="getting-started/">
   <span class="qce-path-card__kicker">Step 1</span>
-  <span class="qce-path-card__title">Set Up IntentQL</span>
+  <span class="qce-path-card__title">Set Up GroundedQL</span>
   <span class="qce-path-card__desc">Install package, define `schema.yaml`, and generate `queryplan_spec_generated.yaml`.</span>
   <span class="qce-path-card__cta">Go to getting started -></span>
 </a>
@@ -29,7 +29,7 @@ IntentQL's small `generate_json` interface.
 
 ## How Adapter Detection Works
 
-When you pass an LLM object to `QueryPlanPlanner` or `QueryAgent`, IntentQL calls `make_llm_client(obj)` internally and selects the right adapter:
+When you pass an LLM object to `QueryPlanPlanner` or `QueryAgent`, GroundedQL calls `make_llm_client(obj)` internally and selects the right adapter:
 
 ```
 make_llm_client(obj)
@@ -54,7 +54,7 @@ You can also import and use adapters directly for fine-grained control.
 
 === "Mistral"
 
-    IntentQL includes a dependency-free Mistral adapter that calls the Mistral chat
+    GroundedQL includes a dependency-free Mistral adapter that calls the Mistral chat
     completions API directly.
 
     ```bash
@@ -64,9 +64,9 @@ You can also import and use adapters directly for fine-grained control.
     ```
 
     ```python
-    import intentql
+    import groundedql
 
-    agent = intentql.QueryAgent(
+    agent = groundedql.QueryAgent(
         engine=engine,
         schema_path="config/schema.yaml",
         llm="mistral",
@@ -78,20 +78,20 @@ You can also import and use adapters directly for fine-grained control.
 
 === "Ollama (built in)"
 
-    IntentQL includes a direct Ollama adapter for local models. No LangChain dependency is
+    GroundedQL includes a direct Ollama adapter for local models. No LangChain dependency is
     required.
 
     ```bash
-    export OLLAMA_MODEL=intentql-gemma4
+    export OLLAMA_MODEL=groundedql-gemma4
     # optional
     export OLLAMA_BASE_URL=http://127.0.0.1:11434
     export OLLAMA_NUM_CTX=8192
     ```
 
     ```python
-    import intentql
+    import groundedql
 
-    agent = intentql.QueryAgent(
+    agent = groundedql.QueryAgent(
         engine=engine,
         schema_path="config/schema.yaml",
         llm="ollama",
@@ -105,15 +105,15 @@ You can also import and use adapters directly for fine-grained control.
     Pass an OpenAI client when you want to use the Responses API adapter.
 
     ```bash
-    pip install intentql openai
-    # Optional: pip install "intentql[memory]"  # few-shot memory (ChromaDB)
+    pip install groundedql openai
+    # Optional: pip install "groundedql[memory]"  # few-shot memory (ChromaDB)
     ```
 
     ```python
     from openai import OpenAI
-    import intentql
+    import groundedql
 
-    planner = intentql.QueryPlanPlanner(
+    planner = groundedql.QueryPlanPlanner(
         llm=OpenAI(api_key="sk-..."),
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -121,15 +121,15 @@ You can also import and use adapters directly for fine-grained control.
     ```
 
     The OpenAI adapter requests structured JSON output and still validates the returned
-    object through IntentQL's normal plan-validation path.
+    object through GroundedQL's normal plan-validation path.
 
     **Specify a different model:**
 
     ```python
-    from intentql.llm_adapters import OpenAIResponsesJSONAdapter
+    from groundedql.llm_adapters import OpenAIResponsesJSONAdapter
 
     adapter = OpenAIResponsesJSONAdapter(OpenAI(api_key="sk-..."), model="gpt-4o")
-    planner = intentql.QueryPlanPlanner(llm=adapter, ...)
+    planner = groundedql.QueryPlanPlanner(llm=adapter, ...)
     ```
 
 === "Google Gemini"
@@ -142,9 +142,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_google_genai import ChatGoogleGenerativeAI
-    import intentql
+    import groundedql
 
-    planner = intentql.QueryPlanPlanner(
+    planner = groundedql.QueryPlanPlanner(
         llm=ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",
             google_api_key="AIza...",
@@ -165,9 +165,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_groq import ChatGroq
-    import intentql
+    import groundedql
 
-    planner = intentql.QueryPlanPlanner(
+    planner = groundedql.QueryPlanPlanner(
         llm=ChatGroq(
             model="llama-3.3-70b-versatile",
             api_key="gsk_...",
@@ -188,9 +188,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_openai import ChatOpenAI
-    import intentql
+    import groundedql
 
-    planner = intentql.QueryPlanPlanner(
+    planner = groundedql.QueryPlanPlanner(
         llm=ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key="sk-..."),
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -212,9 +212,9 @@ You can also import and use adapters directly for fine-grained control.
 
     ```python
     from langchain_ollama import ChatOllama
-    import intentql
+    import groundedql
 
-    planner = intentql.QueryPlanPlanner(
+    planner = groundedql.QueryPlanPlanner(
         llm=ChatOllama(model="qwen2.5:7b"),
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -241,7 +241,7 @@ You can also import and use adapters directly for fine-grained control.
     ```python
     import anthropic
     import json
-    import intentql
+    import groundedql
 
     client = anthropic.Anthropic(api_key="sk-ant-...")
 
@@ -256,7 +256,7 @@ You can also import and use adapters directly for fine-grained control.
         )
         return json.loads(resp.content[0].text)
 
-    planner = intentql.QueryPlanPlanner(
+    planner = groundedql.QueryPlanPlanner(
         llm=claude_generate,
         schema_path="config/schema.yaml",
         spec_path="config/queryplan_spec_generated.yaml",
@@ -270,7 +270,7 @@ You can also import and use adapters directly for fine-grained control.
 `QueryPlanPlanner` handles the full LLM → QueryPlan cycle:
 
 ```python
-planner = intentql.QueryPlanPlanner(
+planner = groundedql.QueryPlanPlanner(
     llm=your_llm,
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
@@ -328,7 +328,7 @@ print(plan["meta"])
 The highest-level API — combines the intent pipeline + compiler + executor in one call. On initialization, it builds a value index from your database and connects to ChromaDB for few-shot memory.
 
 ```python
-agent = intentql.QueryAgent(
+agent = groundedql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
     spec_path="config/queryplan_spec_generated.yaml",
@@ -404,7 +404,7 @@ The value index and few-shot examples are injected dynamically — they're not p
 In the legacy pipeline, the LLM receives three messages:
 
 ```
-[system]  IntentQL system instructions
+[system]  GroundedQL system instructions
           "Produce ONLY valid JSON. Never write SQL. Use logical names only..."
 
 [system]  Your spec YAML + schema YAML
@@ -416,7 +416,7 @@ In the legacy pipeline, the LLM receives three messages:
 To inspect the exact legacy prompt:
 
 ```python
-from intentql.api.spec_api import get_queryplan_instructions
+from groundedql.api.spec_api import get_queryplan_instructions
 
 prompt = get_queryplan_instructions(
     schema_path="config/schema.yaml",

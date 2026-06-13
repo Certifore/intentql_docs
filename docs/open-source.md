@@ -1,21 +1,21 @@
 # Open Source
 
-IntentQL is an open-source semantic compiler for natural-language analytics over Postgres.
+GroundedQL is an open-source semantic compiler for natural-language analytics over Postgres.
 The compiler is public so users can inspect, test, extend, and evaluate the full path from
 semantic hints to parameterized SQL.
 
 ## License
 
-IntentQL is licensed under the **Apache License 2.0**. The repository's `LICENSE` file is
+GroundedQL is licensed under the **Apache License 2.0**. The repository's `LICENSE` file is
 the authoritative license text.
 
 The BIRD benchmark dataset is maintained by its own authors and uses its own license.
-IntentQL does not bundle downloaded BIRD databases. Follow BIRD's license and attribution
+GroundedQL does not bundle downloaded BIRD databases. Follow BIRD's license and attribution
 requirements when downloading or redistributing its benchmark material.
 
 ## Public Project Scope
 
-The open-source project includes the capabilities that define IntentQL:
+The open-source project includes the capabilities that define GroundedQL:
 
 - `QueryIntent` and `QueryPlan` specifications;
 - schema introspection and schema configuration;
@@ -28,24 +28,24 @@ The open-source project includes the capabilities that define IntentQL:
 - model adapters;
 - benchmark runners and generic regression tests.
 
-Users can run IntentQL locally, connect their own model and Postgres database, and evaluate
-the resulting plans and SQL without using an IntentQL-operated service.
+Users can run GroundedQL locally, connect their own model and Postgres database, and evaluate
+the resulting plans and SQL without using an GroundedQL-operated service.
 
 ## Governance
 
-IntentQL is led and maintained by **Alexander Abakah**.
+GroundedQL is led and maintained by **Alexander Abakah**.
 
 Contributors may propose changes through issues and pull requests. A contribution becomes
 part of the official project only after it is reviewed and merged by the lead maintainer.
 Only the lead maintainer publishes official releases, creates official release tags, and
-publishes the official `intentql` package to PyPI.
+publishes the official `groundedql` package to PyPI.
 
 The Apache License 2.0 permits forks and redistribution under its terms. Forks and modified
-distributions must not present themselves as official IntentQL releases.
+distributions must not present themselves as official GroundedQL releases.
 
 ## Contribution Standard
 
-IntentQL welcomes contributions that improve general semantic reasoning, compiler
+GroundedQL welcomes contributions that improve general semantic reasoning, compiler
 expressiveness, validation, safety, integrations, documentation, and evaluation.
 
 The central technical rule is:

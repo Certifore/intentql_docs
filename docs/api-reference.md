@@ -1,12 +1,12 @@
 # API Reference
 
-All public symbols are importable directly from `intentql`:
+All public symbols are importable directly from `groundedql`:
 
 ```python
-import intentql
+import groundedql
 
 # or decompose individually:
-from intentql import execute_query_plan, QueryPlanPlanner, QueryAgent
+from groundedql import execute_query_plan, QueryPlanPlanner, QueryAgent
 ```
 
 ---
@@ -15,8 +15,8 @@ from intentql import execute_query_plan, QueryPlanPlanner, QueryAgent
 
 | Symbol | Kind | Summary |
 |---|---|---|
-| [`intentql init`](#intentql-init) | CLI | Introspect Postgres and generate `schema.yaml`. |
-| [`intentql describe`](#intentql-describe) | CLI | Enrich schema with LLM-generated descriptions. |
+| [`groundedql init`](#groundedql-init) | CLI | Introspect Postgres and generate `schema.yaml`. |
+| [`groundedql describe`](#groundedql-describe) | CLI | Enrich schema with LLM-generated descriptions. |
 | [`execute_query_plan`](#execute_query_plan) | function | Compile + execute a QueryPlan. Primary entrypoint. |
 | [`validate_query_plan`](#validate_query_plan) | function | Validate a plan offline. Returns list of error strings. |
 | [`validate_query_plan_dict`](#validate_query_plan_dict) | function | Structured validation. Returns typed error objects. |
@@ -39,14 +39,14 @@ from intentql import execute_query_plan, QueryPlanPlanner, QueryAgent
 
 ## CLI Commands
 
-IntentQL ships with a command-line interface for schema management. After `pip install intentql`, the `intentql` command is available.
+GroundedQL ships with a command-line interface for schema management. After `pip install groundedql`, the `groundedql` command is available.
 
-### `intentql init`
+### `groundedql init`
 
 Introspect a Postgres database and generate `schema.yaml` with full structure.
 
 ```bash
-intentql init --db "postgresql://user:pass@host/db" [options]
+groundedql init --db "postgresql://user:pass@host/db" [options]
 ```
 
 **Options:**
@@ -60,7 +60,7 @@ intentql init --db "postgresql://user:pass@host/db" [options]
 
 **Auto-detects:**
 
-- Tables, columns, and types (mapped to IntentQL types)
+- Tables, columns, and types (mapped to GroundedQL types)
 - Physical names with proper quoting for camelCase identifiers
 - `primary_id` from primary key constraints
 - `primary_date` via heuristic (looks for `created_at`, `entry_date`, etc.)
@@ -70,7 +70,7 @@ intentql init --db "postgresql://user:pass@host/db" [options]
 **Example:**
 
 ```bash
-intentql init \
+groundedql init \
     --db "postgresql://user:pass@host/db" \
     --schema public \
     --exclude migrations audit_log \
@@ -80,13 +80,13 @@ intentql init \
 #   13 tables, 183 columns, 4 links
 ```
 
-### `intentql describe`
+### `groundedql describe`
 
 Enrich an existing `schema.yaml` with LLM-generated table and column descriptions.
 
 ```bash
 export OPENAI_API_KEY=sk-...
-intentql describe --schema config/schema.yaml [--db URL]
+groundedql describe --schema config/schema.yaml [--db URL]
 ```
 
 **Options:**
@@ -99,7 +99,7 @@ intentql describe --schema config/schema.yaml [--db URL]
 | `--base-url` | `https://api.openai.com/v1` | Any OpenAI-compatible API endpoint |
 | `--model` | `gpt-4o-mini` | Model name to use |
 
-**LLM-agnostic** — works with any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint. No LLM SDK is required; IntentQL uses raw HTTP.
+**LLM-agnostic** — works with any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint. No LLM SDK is required; GroundedQL uses raw HTTP.
 
 When `--db` is provided, the command samples distinct values from each column and includes them in the prompt, producing significantly better descriptions (e.g., the LLM can detect that "values are in UPPER CASE" or "contains free-text descriptions").
 
@@ -108,17 +108,17 @@ When `--db` is provided, the command samples distinct values from each column an
 ```bash
 # OpenAI (default)
 export LLM_API_KEY=sk-...
-intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
+groundedql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
 
 # Groq (free)
-intentql describe \
+groundedql describe \
     --api-key gsk_... \
     --base-url https://api.groq.com/openai/v1 \
     --model llama-3.1-70b-versatile \
     --schema config/schema.yaml
 
 # Ollama (local)
-intentql describe \
+groundedql describe \
     --api-key ollama \
     --base-url http://localhost:11434/v1 \
     --model llama3 \
@@ -130,7 +130,7 @@ intentql describe \
 Both commands are also available as Python functions:
 
 ```python
-from intentql.cli import introspect_database, describe_schema
+from groundedql.cli import introspect_database, describe_schema
 
 schema = introspect_database(db_url="postgresql://...", schema_name="public")
 describe_schema(schema_path="config/schema.yaml", db_url="postgresql://...")
@@ -195,11 +195,11 @@ def execute_query_plan(
 
 ```python
 from sqlalchemy import create_engine
-import intentql
+import groundedql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-result = intentql.execute_query_plan(
+result = groundedql.execute_query_plan(
     engine=engine,
     schema_path="config/schema.yaml",
     query_plan={
@@ -229,7 +229,7 @@ def validate_query_plan(
 **Returns:** A list of error strings. Empty list means valid.
 
 ```python
-errors = intentql.validate_query_plan(plan, "config/schema.yaml")
+errors = groundedql.validate_query_plan(plan, "config/schema.yaml")
 if errors:
     for e in errors:
         print(e)
@@ -255,7 +255,7 @@ def load_and_validate_schema(schema_path: str) -> Dict[str, Any]
 **Raises:** `SchemaError` on fatal issues. Prints warnings to stdout for non-fatal issues.
 
 ```python
-schema = intentql.load_and_validate_schema("config/schema.yaml")
+schema = groundedql.load_and_validate_schema("config/schema.yaml")
 ```
 
 ---
@@ -395,10 +395,10 @@ When semantic lint still fails (and `enforce_semantic_lint` is True):
 
 ## `IntentPlanner`
 
-Two-stage planner: LLM intent extraction → deterministic plan builder. This is the core of IntentQL's consistency pipeline.
+Two-stage planner: LLM intent extraction → deterministic plan builder. This is the core of GroundedQL's consistency pipeline.
 
 ```python
-from intentql.intent_planner import IntentPlanner
+from groundedql.intent_planner import IntentPlanner
 
 class IntentPlanner:
     def __init__(
@@ -459,7 +459,7 @@ plan["meta"] == {
 ChromaDB-backed storage of (question, intent) pairs for few-shot prompting.
 
 ```python
-from intentql.intent_memory import IntentMemory
+from groundedql.intent_memory import IntentMemory
 
 class IntentMemory:
     def __init__(
@@ -474,7 +474,7 @@ class IntentMemory:
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `persist_directory` | `str` | `~/.intentql/intent_memory` | ChromaDB storage directory |
+| `persist_directory` | `str` | `~/.groundedql/intent_memory` | ChromaDB storage directory |
 | `collection_name` | `str` | `"intent_memory"` | ChromaDB collection name |
 | `max_examples` | `int` | `500` | Maximum stored examples (oldest evicted) |
 
@@ -512,7 +512,7 @@ prompt_section = memory.format_few_shot_examples(examples)
 Query the database for distinct values of categorical columns.
 
 ```python
-from intentql.value_index import build_value_index
+from groundedql.value_index import build_value_index
 
 def build_value_index(
     engine: Engine,
@@ -544,7 +544,7 @@ Built once at `QueryAgent` startup, shared across all sessions. Related function
 Deterministic canonicalization of LLM-extracted intents.
 
 ```python
-from intentql.intent_normalize import normalize_intent
+from groundedql.intent_normalize import normalize_intent
 
 def normalize_intent(
     intent: Dict[str, Any],
@@ -578,7 +578,7 @@ def validate_query_plan_dict(
 **Returns:** `(parsed_plan or None, list of ValidationErrorItem)`
 
 ```python
-from intentql import validate_query_plan_dict
+from groundedql import validate_query_plan_dict
 
 plan, errors = validate_query_plan_dict(plan_dict, "config/schema.yaml")
 for e in errors:
@@ -599,7 +599,7 @@ for e in errors:
 The Pydantic model for type-safe plan construction:
 
 ```python
-from intentql import QueryPlan
+from groundedql import QueryPlan
 
 plan = QueryPlan(
     dataset="orders",
@@ -607,7 +607,7 @@ plan = QueryPlan(
     metrics=[{"agg": "count", "field": "*", "alias": "n"}],
 )
 
-result = intentql.execute_query_plan(
+result = groundedql.execute_query_plan(
     engine=engine,
     schema_path="config/schema.yaml",
     query_plan=plan.model_dump(),
@@ -621,7 +621,7 @@ result = intentql.execute_query_plan(
 Returns the JSON Schema for the QueryPlan model. Pass this to any LLM that supports structured output natively:
 
 ```python
-from intentql import queryplan_json_schema
+from groundedql import queryplan_json_schema
 
 schema = queryplan_json_schema()
 # {"type": "object", "properties": {...}, ...}
@@ -642,7 +642,7 @@ def semantic_lint(
 ```
 
 ```python
-from intentql import semantic_lint
+from groundedql import semantic_lint
 
 errors = semantic_lint(
     question="Top 10 customers by revenue",
@@ -660,7 +660,7 @@ for e in errors:
 Lower-level join utilities (`auto_inject_joins`, `build_link_graph`, `shortest_join_path`) for direct pipeline control:
 
 ```python
-from intentql import auto_inject_joins, build_link_graph, shortest_join_path
+from groundedql import auto_inject_joins, build_link_graph, shortest_join_path
 
 # Build the adjacency graph from schema links
 graph = build_link_graph(schema)
@@ -680,7 +680,7 @@ enriched_plan = auto_inject_joins(plan_dict, schema)
 Programmatic spec builder (equivalent to the CLI command):
 
 ```python
-from intentql import build_spec, write_spec
+from groundedql import build_spec, write_spec
 
 spec = build_spec("config/schema.yaml")          # returns dict
 write_spec(spec, "config/queryplan_spec_generated.yaml")
@@ -693,7 +693,7 @@ write_spec(spec, "config/queryplan_spec_generated.yaml")
 Build the full LLM system prompt string from spec + schema:
 
 ```python
-from intentql.api.spec_api import get_queryplan_instructions
+from groundedql.api.spec_api import get_queryplan_instructions
 
 prompt = get_queryplan_instructions(
     schema_path="config/schema.yaml",
@@ -711,9 +711,9 @@ Useful when building your own message lists instead of using `QueryPlanPlanner`.
 Direct access to the compiler if you manage the pipeline yourself:
 
 ```python
-from intentql.compiler import Compiler
+from groundedql.compiler import Compiler
 
-schema = intentql.load_and_validate_schema("config/schema.yaml")
+schema = groundedql.load_and_validate_schema("config/schema.yaml")
 compiler = Compiler(
     schema,
     default_limit=100,

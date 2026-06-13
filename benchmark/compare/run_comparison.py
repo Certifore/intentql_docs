@@ -1,18 +1,18 @@
 """
-IntentQL vs LangChain vs GPT-4 Direct — Comparison Benchmark
+GroundedQL vs LangChain vs GPT-4 Direct — Comparison Benchmark
 
 Usage:
-    cd /home/alexander/git_repos/intentql
+    cd /home/alexander/git_repos/groundedql
     python3 benchmark/compare/run_comparison.py
 
 Requires benchmark/.env with:
     DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
     OPENAI_API_KEY=...  (required for full comparison — LangChain + GPT-4 Direct)
 
-IntentQL planner LLM selection (pipeline / full-pipeline determinism):
+GroundedQL planner LLM selection (pipeline / full-pipeline determinism):
     - OPENAI_API_KEY only → ChatOpenAI
     - GEMINI_API_KEY only → ChatGoogleGenerativeAI (pip install langchain-google-genai)
-    - Both set → ChatOpenAI by default; set INTENTQL_USE_GEMINI=1 to force Gemini for IntentQL
+    - Both set → ChatOpenAI by default; set GROUNDEDQL_USE_GEMINI=1 to force Gemini for GroundedQL
 
     optional: GEMINI_MODEL=gemini-2.0-flash
 
@@ -40,12 +40,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 import yaml
-from intentql.compiler import Compiler
-from intentql.exceptions import QueryPlanError, SchemaError
-from intentql.api.api import execute_query_plan
-from intentql.planner import QueryPlanPlanner
-from intentql.api.spec_api import get_queryplan_instructions
-from intentql.llm_adapters import make_llm_client
+from groundedql.compiler import Compiler
+from groundedql.exceptions import QueryPlanError, SchemaError
+from groundedql.api.api import execute_query_plan
+from groundedql.planner import QueryPlanPlanner
+from groundedql.api.spec_api import get_queryplan_instructions
+from groundedql.llm_adapters import make_llm_client
 
 from competitors.langchain_baseline import make_agent, ask as langchain_ask
 from competitors.gpt4_direct import make_client, ask as gpt4_ask, ask_and_execute
@@ -56,7 +56,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
-RUNS = 5  # determinism runs per question (fewer than IntentQL-only suite to save API cost)
+RUNS = 5  # determinism runs per question (fewer than GroundedQL-only suite to save API cost)
 PIPELINE_DETERMINISM_RUNS = 3  # fewer than compiler determinism to save API cost
 
 MODEL_PRICING = {
@@ -72,7 +72,7 @@ DEFAULT_PRICING = (5.00, 15.00)  # fall back to gpt-4o if model unknown
 def _estimate_cost(total_tokens: int, model: str = "gpt-4o") -> float:
     """
     Estimate cost from total tokens.
-    Assumes 80% input / 20% output split (typical for IntentQL planner calls).
+    Assumes 80% input / 20% output split (typical for GroundedQL planner calls).
     """
     input_price, output_price = MODEL_PRICING.get(model, DEFAULT_PRICING)
     input_tokens  = int(total_tokens * 0.8)
@@ -117,14 +117,14 @@ def _check_env() -> None:
         raise SystemExit(
             "[compare] OPENAI_API_KEY is required for the full comparison "
             "(LangChain + GPT-4 Direct).\n"
-            "For IntentQL-only against a real DB using Gemini, run:\n"
+            "For GroundedQL-only against a real DB using Gemini, run:\n"
             "  python test/test_main.py pipeline\n"
             "with GEMINI_API_KEY (and DB vars) in benchmark/.env"
         )
 
 
 def _check_env_pipeline_flexible() -> None:
-    """Benchmark 4 / pipeline-only: DB plus at least one LLM key (OpenAI and/or Gemini for IntentQL)."""
+    """Benchmark 4 / pipeline-only: DB plus at least one LLM key (OpenAI and/or Gemini for GroundedQL)."""
     _require_db_env()
     if not os.getenv("OPENAI_API_KEY", "").strip() and not os.getenv("GEMINI_API_KEY", "").strip():
         raise SystemExit(
@@ -133,11 +133,11 @@ def _check_env_pipeline_flexible() -> None:
         )
 
 
-def _make_intentql_langchain_llm(*, openai_model: str = "gpt-4o"):
+def _make_groundedql_langchain_llm(*, openai_model: str = "gpt-4o"):
     """
     LangChain chat model for QueryPlanPlanner.
 
-    Prefers OpenAI when OPENAI_API_KEY is set, unless INTENTQL_USE_GEMINI=1.
+    Prefers OpenAI when OPENAI_API_KEY is set, unless GROUNDEDQL_USE_GEMINI=1.
     Uses Gemini when only GEMINI_API_KEY is set, or when forcing Gemini with both keys.
 
     Returns:
@@ -145,7 +145,7 @@ def _make_intentql_langchain_llm(*, openai_model: str = "gpt-4o"):
     """
     openai = os.getenv("OPENAI_API_KEY", "").strip()
     gemini = os.getenv("GEMINI_API_KEY", "").strip()
-    force_gemini = os.getenv("INTENTQL_USE_GEMINI", "").strip().lower() in ("1", "true", "yes")
+    force_gemini = os.getenv("GROUNDEDQL_USE_GEMINI", "").strip().lower() in ("1", "true", "yes")
 
     use_gemini = bool(gemini) and (force_gemini or not openai)
 
@@ -169,7 +169,7 @@ def _make_intentql_langchain_llm(*, openai_model: str = "gpt-4o"):
 
     raise SystemExit(
         "Set GEMINI_API_KEY (and pip install langchain-google-genai) or OPENAI_API_KEY "
-        "for IntentQL pipeline benchmarks."
+        "for GroundedQL pipeline benchmarks."
     )
 
 
@@ -223,7 +223,7 @@ def _token_stats(token_list: list, model: str = "gpt-4o") -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Benchmark 1 — Injection Resistance
 # ---------------------------------------------------------------------------
-def bench_injection_intentql(schema: dict, inputs: list) -> dict:
+def bench_injection_groundedql(schema: dict, inputs: list) -> dict:
     compiler = Compiler(schema)
     rejected = 0
     passed_through = []
@@ -245,7 +245,7 @@ def bench_injection_intentql(schema: dict, inputs: list) -> dict:
 
     total = len(inputs)
     return {
-        "tool": "IntentQL", "score": f"{rejected}/{total}",
+        "tool": "GroundedQL", "score": f"{rejected}/{total}",
         "rejected": rejected, "total": total,
         "passed_through": passed_through,
         "latency": _latency_stats(latencies),
@@ -331,7 +331,7 @@ def bench_injection_langchain(agent, inputs: list) -> dict:
 # ---------------------------------------------------------------------------
 # Benchmark 2 — Determinism
 # ---------------------------------------------------------------------------
-def bench_determinism_intentql(schema: dict, questions: list) -> dict:
+def bench_determinism_groundedql(schema: dict, questions: list) -> dict:
     deterministic = 0
     failures = []
     latencies = []
@@ -355,7 +355,7 @@ def bench_determinism_intentql(schema: dict, questions: list) -> dict:
 
     total = len(questions)
     return {
-        "tool": "IntentQL", "score": f"{deterministic}/{total}",
+        "tool": "GroundedQL", "score": f"{deterministic}/{total}",
         "deterministic": deterministic, "total": total,
         "failures": failures,
         "latency": _latency_stats(latencies),
@@ -412,14 +412,14 @@ def bench_determinism_langchain(agent, questions: list, runs: int = RUNS) -> dic
     }
 
 
-def bench_determinism_intentql_full_pipeline(schema: dict, questions: list, db_url: str) -> dict:
+def bench_determinism_groundedql_full_pipeline(schema: dict, questions: list, db_url: str) -> dict:
     """
     Full-pipeline determinism: same NL question → planner → compiler → SQL.
     Checks whether the same SQL is produced on every run.
     This is the honest measure of end-to-end determinism including the LLM planner.
     """
     engine = _make_engine(db_url)
-    llm, provider, model_id = _make_intentql_langchain_llm(openai_model="gpt-4o")
+    llm, provider, model_id = _make_groundedql_langchain_llm(openai_model="gpt-4o")
     planner = QueryPlanPlanner(
         llm=llm,
         schema_path=str(SCHEMA_PATH),
@@ -455,7 +455,7 @@ def bench_determinism_intentql_full_pipeline(schema: dict, questions: list, db_u
 
     total = len(questions)
     return {
-        "tool": f"IntentQL ({provider}/{model_id})",
+        "tool": f"GroundedQL ({provider}/{model_id})",
         "score": f"{deterministic}/{total}",
         "deterministic": deterministic, "total": total,
         "failures": failures,
@@ -467,7 +467,7 @@ def bench_determinism_intentql_full_pipeline(schema: dict, questions: list, db_u
 # ---------------------------------------------------------------------------
 # Benchmark 3 — Hallucination Rejection
 # ---------------------------------------------------------------------------
-def bench_hallucination_intentql(schema: dict, inputs: list) -> dict:
+def bench_hallucination_groundedql(schema: dict, inputs: list) -> dict:
     compiler = Compiler(schema)
     rejected = 0
     silent = []
@@ -485,7 +485,7 @@ def bench_hallucination_intentql(schema: dict, inputs: list) -> dict:
 
     total = len(inputs)
     return {
-        "tool": "IntentQL", "score": f"{rejected}/{total}",
+        "tool": "GroundedQL", "score": f"{rejected}/{total}",
         "rejected": rejected, "total": total,
         "silent_failures": silent,
         "latency": _latency_stats(latencies),
@@ -548,12 +548,12 @@ def bench_hallucination_langchain(agent, inputs: list) -> dict:
 # ---------------------------------------------------------------------------
 # Benchmark 4 — Full Pipeline: Correctness + End-to-End Latency
 # ---------------------------------------------------------------------------
-def bench_pipeline_intentql(schema: dict, questions: list, db_url: str, model: str = "gpt-4o") -> dict:
-    """Full IntentQL pipeline: question → LLM planner → QueryPlan JSON → compile → execute."""
+def bench_pipeline_groundedql(schema: dict, questions: list, db_url: str, model: str = "gpt-4o") -> dict:
+    """Full GroundedQL pipeline: question → LLM planner → QueryPlan JSON → compile → execute."""
     from langchain_community.callbacks import get_openai_callback
     engine = _make_engine(db_url)
 
-    llm, provider, model_id = _make_intentql_langchain_llm(openai_model=model)
+    llm, provider, model_id = _make_groundedql_langchain_llm(openai_model=model)
 
     planner = QueryPlanPlanner(
         llm=llm,
@@ -625,7 +625,7 @@ def bench_pipeline_intentql(schema: dict, questions: list, db_url: str, model: s
 
     total = len(questions)
     return {
-        "tool": f"IntentQL (full pipeline, {provider}/{model_id})",
+        "tool": f"GroundedQL (full pipeline, {provider}/{model_id})",
         "model": model_id,
         "score": f"{correct}/{total}",
         "correct": correct, "total": total,
@@ -777,10 +777,10 @@ def main() -> None:
     _check_env()
 
     print("=" * 75)
-    print("  IntentQL vs LangChain vs GPT-4 Direct — Full Pipeline Comparison")
+    print("  GroundedQL vs LangChain vs GPT-4 Direct — Full Pipeline Comparison")
     print(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     print(f"  All tools run their FULL pipeline from natural language question")
-    print(f"  IntentQL: question → LLM planner → QueryPlan JSON → compile → execute")
+    print(f"  GroundedQL: question → LLM planner → QueryPlan JSON → compile → execute")
     print(f"  GPT-4: question → SQL generation → execute")
     print(f"  LangChain: question → SQLAgent → execute")
     print(f"  Compiler determinism runs: {RUNS} | Full-pipeline determinism runs: {PIPELINE_DETERMINISM_RUNS}")
@@ -805,13 +805,13 @@ def main() -> None:
     langchain_agent = make_agent(db_url, openai_key)
     print("  ✅ GPT-4 Direct (gpt-4o, temperature=0, full schema + rejection rules)")
     print("  ✅ LangChain SQLAgent (gpt-4o, temperature=0, DB introspection)")
-    print("  ✅ IntentQL (full pipeline: LLM planner + compiler + executor)")
+    print("  ✅ GroundedQL (full pipeline: LLM planner + compiler + executor)")
 
     all_results = {}
 
     print("\n[1/5] Injection Resistance...")
     inj = [
-        bench_injection_intentql(schema, adversarial),
+        bench_injection_groundedql(schema, adversarial),
         bench_injection_langchain(langchain_agent, adversarial),
         bench_injection_gpt4(gpt4_client, schema, adversarial),
     ]
@@ -820,7 +820,7 @@ def main() -> None:
 
     print(f"\n[2/5] Compiler Determinism ({len(det_questions)} questions × {RUNS} runs, no LLM — internal architectural test)...")
     det_compiler = [
-        bench_determinism_intentql(schema, det_questions),
+        bench_determinism_groundedql(schema, det_questions),
         bench_determinism_langchain(langchain_agent, det_questions),
         bench_determinism_gpt4(gpt4_client, schema, det_questions),
     ]
@@ -830,7 +830,7 @@ def main() -> None:
     print(f"\n[3/5] Full-Pipeline Determinism — what users experience ({len(det_questions[:5])} questions × {PIPELINE_DETERMINISM_RUNS})...")
     # All three tools measured end-to-end with natural language input
     det_pipeline = [
-        bench_determinism_intentql_full_pipeline(schema, det_questions[:5], db_url),
+        bench_determinism_groundedql_full_pipeline(schema, det_questions[:5], db_url),
         bench_determinism_langchain(langchain_agent, det_questions[:5], runs=PIPELINE_DETERMINISM_RUNS),
         bench_determinism_gpt4(gpt4_client, schema, det_questions[:5], runs=PIPELINE_DETERMINISM_RUNS),
     ]
@@ -839,7 +839,7 @@ def main() -> None:
 
     print(f"\n[4/5] Hallucination Rejection ({len(hallucination)} inputs)...")
     hal = [
-        bench_hallucination_intentql(schema, hallucination),
+        bench_hallucination_groundedql(schema, hallucination),
         bench_hallucination_langchain(langchain_agent, hallucination),
         bench_hallucination_gpt4(gpt4_client, schema, hallucination),
     ]
@@ -848,7 +848,7 @@ def main() -> None:
 
     print(f"\n[5/5] Full Pipeline Correctness ({len(pipeline_questions)} questions)...")
     pipe = [
-        bench_pipeline_intentql(schema, pipeline_questions, db_url),
+        bench_pipeline_groundedql(schema, pipeline_questions, db_url),
         bench_pipeline_langchain(langchain_agent, pipeline_questions),
         bench_pipeline_gpt4(gpt4_client, schema, pipeline_questions, db_url),
     ]
@@ -858,20 +858,20 @@ def main() -> None:
 
     print(f"\n{'=' * 75}")
     print("  FINAL SUMMARY — USER-FACING BENCHMARKS ONLY")
-    print(f"  {'Benchmark':<40} {'IntentQL':<15} {'LangChain':<25} {'GPT-4 Direct'}")
+    print(f"  {'Benchmark':<40} {'GroundedQL':<15} {'LangChain':<25} {'GPT-4 Direct'}")
     print(f"  {'─'*40} {'─'*15} {'─'*25} {'─'*12}")
     summary_keys = ["injection_resistance", "full_pipeline_determinism", "hallucination_rejection", "full_pipeline"]
     for bname, results in all_results.items():
         if bname not in summary_keys:
             continue
         scores = {r["tool"].split(" ")[0]: r["score"] for r in results}
-        intentql_score = scores.get("IntentQL", "?")
+        groundedql_score = scores.get("GroundedQL", "?")
         lc_score = scores.get("LangChain", "?")
         gpt_score = scores.get("GPT-4", "?")
         label = bname.replace("_", " ").title()
         if bname == "full_pipeline":
             label += " ✱"
-        print(f"  {label:<40} {intentql_score:<15} {lc_score:<25} {gpt_score}")
+        print(f"  {label:<40} {groundedql_score:<15} {lc_score:<25} {gpt_score}")
     print(f"\n  ✱ LangChain pipeline correctness = 'no error returned', not verified correct")
     print(f"  2a (compiler-only determinism) excluded from summary — internal architectural property only")
     print("=" * 75)
@@ -879,14 +879,14 @@ def main() -> None:
     output = {
         "run_at": datetime.now(timezone.utc).isoformat(),
         "methodology": {
-            "IntentQL": "Full pipeline: natural language → LLM planner → QueryPlan JSON → compiler → DB execution",
+            "GroundedQL": "Full pipeline: natural language → LLM planner → QueryPlan JSON → compiler → DB execution",
             "GPT-4 Direct": "Full pipeline: natural language → SQL generation → DB execution",
             "LangChain": "Full pipeline: natural language → SQLAgent → DB execution",
             "fairness_notes": [
                 "All tools receive identical natural language questions",
                 "GPT-4 given same schema descriptions + explicit rejection rules (most charitable setup)",
                 "LangChain uses its native DB introspection advantage",
-                "IntentQL uses its full LLM planner for pipeline benchmarks (not just compiler)",
+                "GroundedQL uses its full LLM planner for pipeline benchmarks (not just compiler)",
                 f"Compiler determinism: {RUNS} runs per question (no LLM, pure compiler test)",
                 f"Full-pipeline determinism: {PIPELINE_DETERMINISM_RUNS} runs per question (includes LLM planner)",
                 "LangChain rate-limit (429) errors counted as inconclusive, not failed",

@@ -1,5 +1,5 @@
 """
-IntentQL Benchmark Runner
+GroundedQL Benchmark Runner
 
 Usage:
     python3 benchmark/run_benchmarks.py
@@ -49,7 +49,7 @@ def _print_result(result: dict) -> None:
 
 def main() -> None:
     print("=" * 50)
-    print("  IntentQL Benchmark Suite")
+    print("  GroundedQL Benchmark Suite")
     print(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     print("=" * 50)
 

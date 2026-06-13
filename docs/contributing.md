@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to IntentQL!
+Thanks for your interest in contributing to GroundedQL!
 
 !!! tip "New to the codebase?"
     Read [Why a Compiler?](architecture.md) and [Core Concepts](concepts.md) first to
@@ -8,7 +8,7 @@ Thanks for your interest in contributing to IntentQL!
 
 ## The Generality Rule
 
-IntentQL uses benchmarks to discover missing capabilities, not as a set of answers to
+GroundedQL uses benchmarks to discover missing capabilities, not as a set of answers to
 memorize.
 
 Every compiler or resolver change must describe a reusable semantic capability and include
@@ -38,8 +38,8 @@ When fixing a benchmark mismatch, include:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Certifore/intentql
-cd intentql
+git clone https://github.com/Certifore/groundedql
+cd groundedql
 ```
 
 ### 2. Create a Virtual Environment
@@ -56,7 +56,7 @@ source env_dsl/bin/activate   # Linux/macOS
 pip install -e ".[dev]"
 ```
 
-This installs `intentql` in editable mode (source changes are reflected immediately), plus `ruff`, `build`, and `twine`.
+This installs `groundedql` in editable mode (source changes are reflected immediately), plus `ruff`, `build`, and `twine`.
 
 ### 4. Install LLM Extras (optional)
 
@@ -72,7 +72,7 @@ pip install langchain-ollama            # Ollama (local models)
 ## Project Structure
 
 ```
-intentql/
+groundedql/
   __init__.py           # public API — everything exported from here
   compiler.py           # core SQL compiler: logical → physical, values → bind params
   executor.py           # executes compiled SQL against Postgres
@@ -136,12 +136,12 @@ python test/test_main.py check    # compare to saved baseline (CI)
 
 ## Linting and Formatting
 
-IntentQL uses [Ruff](https://docs.astral.sh/ruff/):
+GroundedQL uses [Ruff](https://docs.astral.sh/ruff/):
 
 ```bash
-ruff check intentql/         # check for issues
-ruff check --fix intentql/   # auto-fix
-ruff format intentql/        # format
+ruff check groundedql/         # check for issues
+ruff check --fix groundedql/   # auto-fix
+ruff format groundedql/        # format
 ```
 
 All configuration lives in `pyproject.toml`.
@@ -153,7 +153,7 @@ All configuration lives in `pyproject.toml`.
 After any change to `schema.yaml`:
 
 ```bash
-python -m intentql.spec_builder \
+python -m groundedql.spec_builder \
     --schema config/schema.yaml \
     --output config/queryplan_spec_generated.yaml
 ```
@@ -196,7 +196,7 @@ python -m intentql.spec_builder \
 3. **Run checks:**
 
     ```bash
-    ruff check intentql/
+    ruff check groundedql/
     python test/test_main.py lint
     python test/test_generic_planner_resolution.py
     ```

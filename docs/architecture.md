@@ -3,7 +3,7 @@
 Large language models are useful at interpreting language. They are much less dependable
 as database runtimes.
 
-IntentQL separates those responsibilities. A model proposes a small amount of semantic
+GroundedQL separates those responsibilities. A model proposes a small amount of semantic
 information; deterministic infrastructure resolves that information against an allowlisted
 schema, constructs a typed plan, validates it, and compiles parameterized SQL.
 
@@ -34,10 +34,10 @@ names, join paths, SQL syntax, or execution policy.
 
 ## The Design Bet
 
-Most text-to-SQL systems ask a model to produce the final program. IntentQL asks the model
+Most text-to-SQL systems ask a model to produce the final program. GroundedQL asks the model
 for hints and gives the compiler responsibility for the hard guarantees.
 
-| Concern | Model responsibility | IntentQL responsibility |
+| Concern | Model responsibility | GroundedQL responsibility |
 |---|---|---|
 | Understand the user's language | Propose likely intent and evidence | Normalize and resolve it |
 | Choose tables and columns | Suggest semantic targets | Verify against the schema allowlist |
@@ -70,7 +70,7 @@ execution. It describes the requested operation without containing raw SQL.
 }
 ```
 
-Because the plan is structured, IntentQL can inspect it before generating SQL:
+Because the plan is structured, GroundedQL can inspect it before generating SQL:
 
 - every referenced table and column must be allowlisted;
 - joins must use declared schema links;
@@ -80,7 +80,7 @@ Because the plan is structured, IntentQL can inspect it before generating SQL:
 
 ## Resolution, Not Memorization
 
-IntentQL is intended to generalize across domains. Core compiler logic must not contain
+GroundedQL is intended to generalize across domains. Core compiler logic must not contain
 special cases for benchmark databases, customer names, or known questions.
 
 Instead, the resolver works from reusable signals:
@@ -97,7 +97,7 @@ General semantic capabilities belong in the compiler.
 
 ## What Is Deterministic?
 
-IntentQL does **not** claim that natural language interpretation is deterministic. Different
+GroundedQL does **not** claim that natural language interpretation is deterministic. Different
 models can still propose different hints for an ambiguous question.
 
 It does provide deterministic behavior after a plan is resolved:
@@ -114,7 +114,7 @@ unambiguous, but it can prevent an uncertain interpretation from becoming arbitr
 
 ## Trust Boundaries
 
-IntentQL's public compiler is designed around several explicit boundaries:
+GroundedQL's public compiler is designed around several explicit boundaries:
 
 1. **The model is untrusted.** Its output is data to validate, not code to execute.
 2. **The schema is an allowlist.** Undeclared tables and columns are unavailable.
@@ -123,13 +123,13 @@ IntentQL's public compiler is designed around several explicit boundaries:
 5. **Uncertainty should be visible.** Unsupported or unresolved requests should fail or
    request clarification rather than silently changing meaning.
 
-## Where IntentQL Is Going
+## Where GroundedQL Is Going
 
 The long-term goal is an expressive semantic IR that can represent a broad portion of
 analytical SQL while preserving these trust boundaries. That includes richer formulas,
 subqueries, temporal reasoning, comparisons, and multi-step questions.
 
-IntentQL is not trying to prove that models are unnecessary. It is trying to make model
+GroundedQL is not trying to prove that models are unnecessary. It is trying to make model
 quality one component of the system rather than the system's only line of defense.
 
 Read [Core Concepts](concepts.md) for the current implementation details or inspect the

@@ -1,8 +1,8 @@
-# IntentQL Analytics Cookbook
+# GroundedQL Analytics Cookbook
 
-This cookbook shows complete, domain-neutral examples of common analytics questions. Each example includes a valid `schema.yaml`, a hand-written QueryPlan, and the parameterized SQL and bind parameters produced by IntentQL's deterministic compiler.
+This cookbook shows complete, domain-neutral examples of common analytics questions. Each example includes a valid `schema.yaml`, a hand-written QueryPlan, and the parameterized SQL and bind parameters produced by GroundedQL's deterministic compiler.
 
-The examples require neither an LLM nor a live database. QueryPlans can be validated offline with `intentql.validate_query_plan`, and SQL can be produced directly by the compiler.
+The examples require neither an LLM nor a live database. QueryPlans can be validated offline with `groundedql.validate_query_plan`, and SQL can be produced directly by the compiler.
 
 ## 1. Detail And Lookup Queries
 

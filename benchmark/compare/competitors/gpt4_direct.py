@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 from openai import OpenAI
 
-# Same schema information IntentQL uses — loaded dynamically so it stays in sync
+# Same schema information GroundedQL uses — loaded dynamically so it stays in sync
 def _build_system_prompt(schema: dict) -> str:
     lines = [
         "You are a SQL expert for a PostgreSQL database.",

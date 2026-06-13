@@ -1,6 +1,6 @@
 # Getting Started
 
-Get from zero to a running IntentQL query in under five minutes.
+Get from zero to a running GroundedQL query in under five minutes.
 
 ---
 
@@ -9,32 +9,32 @@ Get from zero to a running IntentQL query in under five minutes.
 - Python ≥ 3.10
 - A running Postgres database (local or remote)
 - Optional: a Mistral API key, local Ollama model, or another compatible LLM — only needed for natural-language input
-- Optional: `pip install "intentql[memory]"` — persistent few-shot memory (recommended for production)
+- Optional: `pip install "groundedql[memory]"` — persistent few-shot memory (recommended for production)
 
 ---
 
 ## 1. Install
 
 ```bash
-pip install intentql
+pip install groundedql
 ```
 
 For natural-language queries with **persistent few-shot memory** (recommended in production), install the memory extra (includes ChromaDB):
 
 ```bash
-pip install "intentql[memory]"
+pip install "groundedql[memory]"
 ```
 
 Optional extras for benchmarks or LangChain-based demos:
 
 ```bash
-pip install "intentql[benchmark]"   # LangChain + OpenAI / Google — see benchmark/
+pip install "groundedql[benchmark]"   # LangChain + OpenAI / Google — see benchmark/
 ```
 
 ??? note "Install from source"
     ```bash
-    git clone https://github.com/Certifore/intentql
-    cd intentql
+    git clone https://github.com/Certifore/groundedql
+    cd groundedql
     pip install -e ".[dev]"
     ```
 
@@ -42,12 +42,12 @@ pip install "intentql[benchmark]"   # LangChain + OpenAI / Google — see benchm
 
 ## 2. Generate Your Schema
 
-`schema.yaml` is the **allowlist** that tells IntentQL which tables and columns exist. The LLM only sees logical names; the compiler maps them to physical Postgres identifiers.
+`schema.yaml` is the **allowlist** that tells GroundedQL which tables and columns exist. The LLM only sees logical names; the compiler maps them to physical Postgres identifiers.
 
-IntentQL can generate this file automatically by introspecting your database:
+GroundedQL can generate this file automatically by introspecting your database:
 
 ```bash
-intentql init --db "postgresql://user:pass@host/db"
+groundedql init --db "postgresql://user:pass@host/db"
 ```
 
 This connects to your Postgres database and generates `config/schema.yaml` with:
@@ -62,7 +62,7 @@ This connects to your Postgres database and generates `config/schema.yaml` with:
 You can exclude tables and target a specific schema:
 
 ```bash
-intentql init \
+groundedql init \
     --db "postgresql://user:pass@host/db" \
     --schema public \
     --exclude migrations audit_log \
@@ -75,23 +75,23 @@ The bare schema from `init` has structure but no descriptions. Descriptions dram
 
 ```bash
 export LLM_API_KEY=sk-...   # or OPENAI_API_KEY
-intentql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
+groundedql describe --schema config/schema.yaml --db "postgresql://user:pass@host/db"
 ```
 
 This sends each table's structure and sample values to the LLM, which generates concise descriptions for every table and column. The `--db` flag is optional but recommended — sample values give the LLM much better context (e.g., it can detect "values are in UPPER CASE").
 
 !!! info "`describe` is a strong starting point, not the whole story"
     Auto-generated descriptions are comparable to bootstrapping prompts in other NL→SQL tools: they get you productive quickly, but they **cannot** know your business rules (e.g. “this column is a workflow code, not a trade name,” or “never join these two tables for customer-facing answers”).  
-    **Plan for one pass of domain review** on columns that are ambiguous, heavily overloaded, or safety-critical. That is the same kind of tuning you would do with hand-written prompts elsewhere — IntentQL just makes it structured and versionable in `schema.yaml`.
+    **Plan for one pass of domain review** on columns that are ambiguous, heavily overloaded, or safety-critical. That is the same kind of tuning you would do with hand-written prompts elsewhere — GroundedQL just makes it structured and versionable in `schema.yaml`.
 
 Works with **any OpenAI-compatible provider** — no LLM SDK required:
 
 ```bash
 # Groq (free tier)
-intentql describe --api-key gsk_... --base-url https://api.groq.com/openai/v1 --model llama-3.1-70b-versatile
+groundedql describe --api-key gsk_... --base-url https://api.groq.com/openai/v1 --model llama-3.1-70b-versatile
 
 # Ollama (local)
-intentql describe --api-key ollama --base-url http://localhost:11434/v1 --model llama3
+groundedql describe --api-key ollama --base-url http://localhost:11434/v1 --model llama3
 ```
 
 !!! tip "What to review first"
@@ -164,11 +164,11 @@ See the full [Schema Reference](schema-reference.md) for all options.
 
 ```python title="quickstart.py"
 from sqlalchemy import create_engine
-import intentql
+import groundedql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-result = intentql.execute_query_plan(
+result = groundedql.execute_query_plan(
     engine=engine,
     schema_path="config/schema.yaml",
     query_plan={
@@ -201,11 +201,11 @@ memory.
 
 ```python title="agent_quickstart.py"
 from sqlalchemy import create_engine
-import intentql
+import groundedql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-agent = intentql.QueryAgent(
+agent = groundedql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
     llm="mistral",
@@ -226,11 +226,11 @@ export MISTRAL_AI=...
 To use a local Ollama model instead:
 
 ```bash
-export OLLAMA_MODEL=intentql-gemma4
+export OLLAMA_MODEL=groundedql-gemma4
 ```
 
 ```python
-agent = intentql.QueryAgent(
+agent = groundedql.QueryAgent(
     engine=engine,
     schema_path="config/schema.yaml",
     llm="ollama",
@@ -260,11 +260,11 @@ schema review and regression testing.
 ```python title="planner_quickstart.py"
 from sqlalchemy import create_engine
 from openai import OpenAI
-import intentql
+import groundedql
 
 engine = create_engine("postgresql+psycopg2://user:pass@localhost/mydb")
 
-planner = intentql.QueryPlanPlanner(
+planner = groundedql.QueryPlanPlanner(
     llm=OpenAI(api_key="sk-..."),
     schema_path="config/schema.yaml",
 )
@@ -275,11 +275,11 @@ print(plan["meta"]["retry_count"])       # 0 — succeeded on first attempt
 print(plan["meta"]["auto_fixes_applied"])
 
 # Step 2: validate independently (optional — execute_query_plan does this too)
-errors = intentql.validate_query_plan(plan, "config/schema.yaml")
+errors = groundedql.validate_query_plan(plan, "config/schema.yaml")
 assert not errors
 
 # Step 3: execute
-result = intentql.execute_query_plan(engine=engine, schema_path="config/schema.yaml", query_plan=plan)
+result = groundedql.execute_query_plan(engine=engine, schema_path="config/schema.yaml", query_plan=plan)
 print(result["rows"])
 ```
 
@@ -287,7 +287,7 @@ print(result["rows"])
 
 ## 4. Async web apps { #async-apps }
 
-For **FastAPI**, **Starlette**, or any async web stack, keep in mind: IntentQL’s public API is **synchronous**. `QueryAgent.ask`, `execute_query_plan`, and `QueryPlanPlanner` use a standard SQLAlchemy **sync** `Engine` and block for the duration of each call (LLM + database work).
+For **FastAPI**, **Starlette**, or any async web stack, keep in mind: GroundedQL’s public API is **synchronous**. `QueryAgent.ask`, `execute_query_plan`, and `QueryPlanPlanner` use a standard SQLAlchemy **sync** `Engine` and block for the duration of each call (LLM + database work).
 
 There is **no** `async def ask()` or `AsyncEngine` support in the library yet. That may be added in a future release.
 
@@ -320,7 +320,7 @@ Reuse a **single** `QueryAgent` instance per process (or use a small pool) so th
 Use `validate_query_plan` to check plans in unit tests, CI, or a plan preview endpoint — no database connection required:
 
 ```python
-errors = intentql.validate_query_plan(
+errors = groundedql.validate_query_plan(
     query_plan=plan,
     schema_path="config/schema.yaml",
 )
@@ -341,7 +341,7 @@ else:
 |---|---|
 | Understand joins, rollup, relative dates | [QueryPlan Reference](query-plan-reference.md) |
 | Use a free LLM (Gemini, Groq) | [LLM Integration](llm-integration.md) |
-| Use IntentQL from FastAPI / async code | [§ Async web apps](#async-apps) (above) |
+| Use GroundedQL from FastAPI / async code | [§ Async web apps](#async-apps) (above) |
 | Learn the full compilation pipeline | [Core Concepts](concepts.md) |
 | See every public function | [API Reference](api-reference.md) |
 | Handle errors in production | [Exception Reference](exceptions.md) |

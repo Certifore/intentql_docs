@@ -6,8 +6,8 @@ from typing import Any, Dict, List
 
 import yaml
 
-from intentql.compiler import Compiler
-from intentql.exceptions import QueryPlanError, SchemaError
+from groundedql.compiler import Compiler
+from groundedql.exceptions import QueryPlanError, SchemaError
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "adversarial_inputs.json"
 SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "schema.yaml"

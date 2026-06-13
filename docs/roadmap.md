@@ -1,6 +1,6 @@
 # Project Roadmap
 
-IntentQL's goal is to make natural-language analytics more reliable by moving structural
+GroundedQL's goal is to make natural-language analytics more reliable by moving structural
 reasoning from model-generated SQL into a typed semantic compiler.
 
 The roadmap is organized around capabilities, not benchmark-specific cases.
@@ -26,7 +26,7 @@ The roadmap is organized around capabilities, not benchmark-specific cases.
 - simplify first-run schema generation and review;
 - provide clearer plan traces and resolution explanations;
 - improve adapter support for local and inexpensive models;
-- add examples for embedding IntentQL in APIs and applications;
+- add examples for embedding GroundedQL in APIs and applications;
 - document extension interfaces for custom schema metadata and resolvers.
 
 ## Later: Production And Enterprise Operations
@@ -40,7 +40,7 @@ The roadmap is organized around capabilities, not benchmark-specific cases.
 
 ## Definition Of Progress
 
-IntentQL is improving when:
+GroundedQL is improving when:
 
 1. more useful questions can be represented by the IR;
 2. fewer questions require a capable or expensive model;
@@ -49,4 +49,4 @@ IntentQL is improving when:
 5. users can reproduce the claims we publish.
 
 The implementation-level roadmap also lives in the main repository's
-[`ROADMAP.md`](https://github.com/Certifore/intentql/blob/main/ROADMAP.md).
+[`ROADMAP.md`](https://github.com/Certifore/groundedql/blob/main/ROADMAP.md).
